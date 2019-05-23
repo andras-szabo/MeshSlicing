@@ -3,9 +3,22 @@ using UnityEngine;
 
 public static class MeshUtilities
 {
-	public static void SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartWorldPos, Vector3 cutEndWorldPos)
+	public static void LogIf(bool log, string msg)
 	{
+		if (log) { Debug.Log(msg); }
+	}
 
+	public static void SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartWorldPos, Vector3 cutEndWorldPos, bool log = true)
+	{
+		TransformCutToObjectSpace(ref cutStartWorldPos, ref cutEndWorldPos, meshGO.transform);
+		LogIf(log, string.Format("Cut: {0} -> {1}", cutStartWorldPos, cutEndWorldPos));
+	}
+
+	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, Transform meshTransform)
+	{
+		var worldToLocal = meshTransform.worldToLocalMatrix;
+		cutStartWorldPos = worldToLocal.MultiplyPoint3x4(cutStartWorldPos);
+		cutEndWorldPos = worldToLocal.MultiplyPoint3x4(cutEndWorldPos);
 	}
 
 	public static Mesh CreateSingleTriangleMesh(IEnumerable<Vector3> points, Vector3 normal)
