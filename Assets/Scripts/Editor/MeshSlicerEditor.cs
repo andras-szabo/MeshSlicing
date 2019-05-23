@@ -18,21 +18,27 @@ public class MeshSlicerEditor : Editor
 
 		if (GUILayout.Button("Create default"))
 		{
-			ResetDefault((MeshSlicer)target);
-			CreateSingleTriangleMesh((MeshSlicer)target);
+			var slicer = (MeshSlicer)target;
+			Cleanup(slicer);
+			ResetDefault(slicer);
+			CreateSingleTriangleMesh(slicer);
 		}
 
 		if (GUILayout.Button("Create random"))
 		{
-			RandomizePoints((MeshSlicer)target, _randomMin, _randomMax);
-			CreateSingleTriangleMesh((MeshSlicer)target);
+			var slicer = (MeshSlicer)target;
+			Cleanup(slicer);
+			RandomizePoints(slicer, _randomMin, _randomMax);
+			CreateSingleTriangleMesh(slicer);
 		}
 
 		EditorGUILayout.Separator();
 
 		if (GUILayout.Button("Cleanup"))
 		{
-			Cleanup((MeshSlicer)target);
+			var slicer = (MeshSlicer)target;
+			Cleanup(slicer);
+			slicer.meshGameObjectToSlice = null;
 		}
 	}
 
@@ -51,11 +57,10 @@ public class MeshSlicerEditor : Editor
 		}
 
 		_createdGameObjects.Clear();
-		_goCounter = 0;
 
 		if (Application.isPlaying)
 		{
-			slicer.CleanUpCut();
+			slicer.CleanupCut();
 		}
 	}
 
@@ -83,5 +88,6 @@ public class MeshSlicerEditor : Editor
 		renderer.material = slicer.meshMaterial;
 
 		_createdGameObjects.Add(go);
+		slicer.meshGameObjectToSlice = go;
 	}
 }

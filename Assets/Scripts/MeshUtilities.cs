@@ -3,6 +3,11 @@ using UnityEngine;
 
 public static class MeshUtilities
 {
+	public static void SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartWorldPos, Vector3 cutEndWorldPos)
+	{
+
+	}
+
 	public static Mesh CreateSingleTriangleMesh(IEnumerable<Vector3> points, Vector3 normal)
 	{
 		var vertices = new Vector3[3];

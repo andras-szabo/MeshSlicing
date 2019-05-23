@@ -9,12 +9,14 @@ public class MeshSlicer : MonoBehaviour
 
 	public Material meshMaterial;
 
+	public GameObject meshGameObjectToSlice;
+
 	private Vector3 _cutStartPoint;
 	private Vector3 _cutEndPoint;
 
 	private bool _hasStartedMarkingTheCut;
 
-	public void CleanUpCut()
+	public void CleanupCut()
 	{
 		_cutStartPoint = Vector3.zero;
 		_cutEndPoint = Vector3.zero;
@@ -25,7 +27,7 @@ public class MeshSlicer : MonoBehaviour
 	{
 		if (Input.GetMouseButtonDown(0))
 		{
-			_cutStartPoint = GetMousePoint();
+			_cutStartPoint = GetMousePoint(log: true);
 			_hasStartedMarkingTheCut = true;
 		}
 
@@ -36,7 +38,7 @@ public class MeshSlicer : MonoBehaviour
 
 		if (Input.GetMouseButtonUp(0))
 		{
-			_cutEndPoint = GetMousePoint();
+			_cutEndPoint = GetMousePoint(log: true);
 			MakeTheCut();
 		}
 	}
@@ -53,14 +55,26 @@ public class MeshSlicer : MonoBehaviour
 	private void MakeTheCut()
 	{
 		_hasStartedMarkingTheCut = false;
+
+		if (meshGameObjectToSlice != null)
+		{
+			MeshUtilities.SliceSingleTriangleMesh(meshGameObjectToSlice, _cutStartPoint, _cutEndPoint);
+		}
+		else
+		{
+			Debug.LogWarning("No mesh gameObject to slice.");
+		}
 	}
 
-	private Vector3 GetMousePoint()
+	private Vector3 GetMousePoint(bool log = false)
 	{
 		var screenCoords = Input.mousePosition;
 		screenCoords.z = -Camera.main.transform.position.z;
 		var worldPoint = Camera.main.ScreenToWorldPoint(screenCoords);
-		Debug.Log(worldPoint);
+		if (log)
+		{
+			Debug.Log(worldPoint);
+		}
 		return worldPoint;
 	}
 }
