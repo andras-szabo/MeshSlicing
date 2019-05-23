@@ -32,7 +32,7 @@ public class MeshSlicerEditor : Editor
 
 		if (GUILayout.Button("Cleanup"))
 		{
-			Cleanup();
+			Cleanup((MeshSlicer)target);
 		}
 	}
 
@@ -43,7 +43,7 @@ public class MeshSlicerEditor : Editor
 		slicer.pointC = new Vector3(-1f, -1f, 0f);
 	}
 
-	private void Cleanup()
+	private void Cleanup(MeshSlicer slicer)
 	{
 		foreach (var go in _createdGameObjects)
 		{
@@ -52,6 +52,11 @@ public class MeshSlicerEditor : Editor
 
 		_createdGameObjects.Clear();
 		_goCounter = 0;
+
+		if (Application.isPlaying)
+		{
+			slicer.CleanUpCut();
+		}
 	}
 
 	private void RandomizePoints(MeshSlicer slicer, float rangeMin, float rangeMax)

@@ -1,11 +1,13 @@
 1. Slicing a single triangle.
 
 === Create triangle
-- Create said triangle from code.
-- Add mesh renderer with default material, make sure it shows up.
+o Create said triangle from code.
+o Add mesh renderer with default material, make sure it shows up.
 
 === Slice said triangle
 - transform cut coordinates into object space
+	o well, first, let's _get_ said cut coordinates, via 2 mouse clicks-?
+	= then actually transform them	
 - calculate cut normal
 - calculate intersections Iab, Ibc, Iac
 - reject if there are no 2 intersections
