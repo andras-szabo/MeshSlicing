@@ -1,0 +1,15 @@
+1. Slicing a single triangle.
+
+=== Create triangle
+- Create said triangle from code.
+- Add mesh renderer with default material, make sure it shows up.
+
+=== Slice said triangle
+- transform cut coordinates into object space
+- calculate cut normal
+- calculate intersections Iab, Ibc, Iac
+- reject if there are no 2 intersections
+- decide which kind of cut it is
+- create new meshes based on that
++ interpolate normals
++ interpolate UVs
