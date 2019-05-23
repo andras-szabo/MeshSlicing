@@ -5,10 +5,13 @@ o Create said triangle from code.
 o Add mesh renderer with default material, make sure it shows up.
 
 === Slice said triangle
-- transform cut coordinates into object space
+o transform cut coordinates into object space
 	o well, first, let's _get_ said cut coordinates, via 2 mouse clicks-?
-	= then actually transform them	
+	o then actually transform them	
 - calculate cut normal
+	- forgot that we're technically in 3d now. so:
+		= just rotate around z. will this make sense? can there be no gimbal?
+
 - calculate intersections Iab, Ibc, Iac
 - reject if there are no 2 intersections
 - decide which kind of cut it is
