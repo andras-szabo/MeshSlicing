@@ -23,7 +23,7 @@ public static class MeshUtilities
 		var delta = cutEndObjectSpace - cutStartObjectSpace;
 		LogIf(log, string.Format("Delta: {0}", delta));
 		var rotation = Quaternion.AngleAxis(90f, localForward);
-		return rotation * delta;
+		return (rotation * delta).normalized;
 	}
 
 	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, Transform meshTransform)
