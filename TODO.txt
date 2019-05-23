@@ -8,12 +8,15 @@ o Add mesh renderer with default material, make sure it shows up.
 o transform cut coordinates into object space
 	o well, first, let's _get_ said cut coordinates, via 2 mouse clicks-?
 	o then actually transform them	
-- calculate cut normal
-	- forgot that we're technically in 3d now. so:
-		= just rotate around z. will this make sense? can there be no gimbal?
+o calculate cut normal
+	o forgot that we're technically in 3d now. so:
+		o just rotate around _local_ forward
 
-- calculate intersections Iab, Ibc, Iac
-- reject if there are no 2 intersections
+o calculate intersections Iab, Ibc, Iac
+	= now the heavy lifting.
+
+o reject if there are no 2 intersections
+
 - decide which kind of cut it is
 - create new meshes based on that
 + interpolate normals
