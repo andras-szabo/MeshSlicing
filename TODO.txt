@@ -13,7 +13,6 @@ o calculate cut normal
 		o just rotate around _local_ forward
 
 o calculate intersections Iab, Ibc, Iac
-	= now the heavy lifting.
 
 o reject if there are no 2 intersections
 
@@ -21,3 +20,4 @@ o reject if there are no 2 intersections
 - create new meshes based on that
 + interpolate normals
 + interpolate UVs
++ reject not full slices

@@ -3,12 +3,26 @@ using UnityEngine;
 
 public static class MeshUtilities
 {
+	public enum CutType
+	{
+		None,
+		ABCA,
+		ABBC,
+		BCCA
+	}
+
 	public struct TriIntersections
 	{
+		public Vector3 A;
+		public Vector3 B;
+		public Vector3 C;
+
 		public Vector3 Iab;
 		public Vector3 Ibc;
 		public Vector3 Ica;
-		public bool isFullSlice;
+
+		public CutType type;
+		public Vector3 normal;
 	}
 
 	public static void LogIf(bool log, string msg)
@@ -16,7 +30,7 @@ public static class MeshUtilities
 		if (log) { Debug.LogWarning(msg); }
 	}
 
-	public static void SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, bool log = true)
+	public static void SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, bool log = true)
 	{
 		var meshTransform = meshGO.transform;
 		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, meshTransform);
@@ -25,19 +39,42 @@ public static class MeshUtilities
 		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, meshTransform.forward, log);
 		LogIf(log, string.Format("Cut normal: {0}", cutNormal));
 
-		var intersections = CalculateIntersections(meshGO, cutStartPos, cutEndPos, cutNormal, log);
+		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
+		var intersections = CalculateIntersections(mesh, cutStartPos, cutEndPos, cutNormal, log);
 
-		if (intersections.isFullSlice)
+		if (intersections.type != CutType.None)
 		{
-			// Actually do the slicing
+			CreateMeshes(intersections, material);
 		}
 	}
 
-	private static TriIntersections CalculateIntersections(GameObject meshGO, Vector3 cutStartObjectSpace, Vector3 cutEndObjectSpace, Vector3 cutNormal, bool log)
+	private static void CreateMeshes(TriIntersections cut, Material material)
+	{
+		switch (cut.type)
+		{
+			case CutType.ABCA:
+			{
+				var mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.A, cut.Iab, cut.Ica }, cut.normal);
+				var mesh2 = CreateMultiTriangleMesh(new Vector3[]
+						{
+							cut.C, cut.Ica, cut.Iab,
+							cut.C, cut.Iab, cut.B
+						}, cut.normal);
+
+				var go1 = CreateMeshGameObject(mesh1, "Small bit", material);
+				var go2 = CreateMeshGameObject(mesh2, "Larger bit", material);	
+
+				break;
+			}
+			default:
+				break;
+		}
+	}
+
+
+	private static TriIntersections CalculateIntersections(Mesh mesh, Vector3 cutStartObjectSpace, Vector3 cutEndObjectSpace, Vector3 cutNormal, bool log)
 	{
 		var result = new TriIntersections();
-
-		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
 
 		var indexA = mesh.triangles[0];
 		var indexB = mesh.triangles[1];
@@ -57,11 +94,22 @@ public static class MeshUtilities
 
 		var intersectCount = 0;
 
-		if (intersectsAB) { intersectCount++; LogIf(log, "Intersects AB");  }
-		if (intersectsBC) { intersectCount++; LogIf(log, "Intersects BC");  }
-		if (intersectsCA) { intersectCount++; LogIf(log, "Intersects CA");  }
+		if (intersectsAB) { intersectCount++; LogIf(log, "Intersects AB"); }
+		if (intersectsBC) { intersectCount++; LogIf(log, "Intersects BC"); }
+		if (intersectsCA) { intersectCount++; LogIf(log, "Intersects CA"); }
 
-		result.isFullSlice = intersectCount == 2;
+		if (intersectCount == 2)
+		{
+			if (intersectsAB && intersectsBC) { result.type = CutType.ABBC; }
+			else if (intersectsAB && intersectsCA) { result.type = CutType.ABCA; }
+			else { result.type = CutType.BCCA; }
+
+			result.A = pointA;
+			result.B = pointB;
+			result.C = pointC;
+
+			result.normal = mesh.normals[0];
+		}
 
 		LogIf(log, string.Format("Intersection count: {0}", intersectCount));
 
@@ -118,6 +166,39 @@ public static class MeshUtilities
 		cutStartWorldPos = worldToLocal.MultiplyPoint3x4(cutStartWorldPos);
 		cutEndWorldPos = worldToLocal.MultiplyPoint3x4(cutEndWorldPos);
 	}
+	
+	private static Mesh CreateMultiTriangleMesh(Vector3[] vertices, Vector3 normal)
+	{
+		var normals = new Vector3[vertices.Length];
+		var triangles = new int[vertices.Length];
+
+		for (int i = 0; i < normals.Length; ++i) 
+		{ 
+			normals[i] = normal;
+
+			// So we're duplicating vertices here, yes.
+
+			triangles[i] = i;
+		}
+
+		var mesh = new Mesh();
+
+		mesh.vertices = vertices;
+		mesh.triangles = triangles;
+		mesh.normals = normals;
+
+		return mesh;
+	}
+
+	public static GameObject CreateMeshGameObject(Mesh mesh, string goName, Material material)
+	{
+		var go = new GameObject(goName);
+		var meshFilter = go.AddComponent<MeshFilter>();
+		meshFilter.mesh = mesh;
+		var renderer = go.AddComponent<MeshRenderer>();
+		renderer.material = material;
+		return go;
+	}
 
 	public static Mesh CreateSingleTriangleMesh(IEnumerable<Vector3> points, Vector3 normal)
 	{
@@ -147,6 +228,7 @@ public static class MeshUtilities
 
 		mesh.vertices = vertices;
 		mesh.triangles = triangles;
+		mesh.normals = normals;
 
 		mesh.RecalculateNormals();
 

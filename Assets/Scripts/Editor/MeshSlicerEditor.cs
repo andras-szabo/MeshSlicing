@@ -80,12 +80,7 @@ public class MeshSlicerEditor : Editor
 	{
 		var points = new Vector3[] { slicer.pointA, slicer.pointB, slicer.pointC };
 		var mesh = MeshUtilities.CreateSingleTriangleMesh(points, slicer.normal);
-
-		var go = new GameObject(string.Format("GO_{0}", _goCounter++));
-		var meshFilter = go.AddComponent<MeshFilter>();
-		meshFilter.mesh = mesh;
-		var renderer = go.AddComponent<MeshRenderer>();
-		renderer.material = slicer.meshMaterial;
+		var go = MeshUtilities.CreateMeshGameObject(mesh, string.Format("GO_{0}", _goCounter++), slicer.meshMaterial);
 
 		_createdGameObjects.Add(go);
 		slicer.meshGameObjectToSlice = go;
