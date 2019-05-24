@@ -32,6 +32,42 @@ public static class MeshUtilities
 
 	public static Vector3 staticCutNormal;
 
+	public static bool SliceMultiTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material,
+												bool makePiecesDrop = true, bool log = true)
+	{
+		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
+		staticCutNormal = cutNormal;
+
+		var meshTransform = meshGO.transform;
+		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, ref cutNormal, meshTransform);
+
+		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
+
+		for (int triStartIndex = 0; triStartIndex < mesh.triangles.Length; triStartIndex += 3)
+		{
+			// Calculate intersections for tri in mesh that starts at given index
+			var intersection = CalculateIntersections(mesh, triStartIndex, cutStartPos, cutEndPos, cutNormal, log);
+			if (intersection.type == CutType.None)
+			{
+				// Not cut => just calculate if this tri is above or below the cut
+			//	if (IsTriAboveCut(mesh, triStartIndex, cutStartPos, cutNormal, log))
+				{
+					// Copy triangle to mesh above
+				}
+				//else
+				{
+					// Copy triangle to mesh below
+				}
+			}
+			else
+			{
+				// switch on the type of cut, and decide where to add which mesh piece
+			}
+		}
+			   
+		return false;
+	}
+
 	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, 
 												bool makePiecesDrop = true, bool log = true)
 	{
@@ -44,7 +80,7 @@ public static class MeshUtilities
 		LogIf(log, string.Format("Cut: {0} -> {1}; normal: {2}", cutStartPos, cutEndPos, cutNormal));
 
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
-		var intersections = CalculateIntersections(mesh, cutStartPos, cutEndPos, cutNormal, log);
+		var intersections = CalculateIntersections(mesh, 0, cutStartPos, cutEndPos, cutNormal, log);
 
 		if (intersections.type != CutType.None)
 		{
@@ -120,14 +156,14 @@ public static class MeshUtilities
 		return null;
 	}
 
-
-	private static TriIntersections CalculateIntersections(Mesh mesh, Vector3 cutStartObjectSpace, Vector3 cutEndObjectSpace, Vector3 cutNormal, bool log)
+	private static TriIntersections CalculateIntersections(Mesh mesh, int triStartIndex, Vector3 cutStartObjectSpace, Vector3 cutEndObjectSpace,
+														   Vector3 cutNormal, bool log)
 	{
 		var result = new TriIntersections();
 
-		var indexA = mesh.triangles[0];
-		var indexB = mesh.triangles[1];
-		var indexC = mesh.triangles[2];
+		var indexA = mesh.triangles[triStartIndex];
+		var indexB = mesh.triangles[triStartIndex + 1];
+		var indexC = mesh.triangles[triStartIndex + 2];
 
 		var pointA = mesh.vertices[indexA];
 		var pointB = mesh.vertices[indexB];

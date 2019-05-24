@@ -324,7 +324,7 @@ MeshCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Convex: 0
+  m_Convex: 1
   m_CookingOptions: 14
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &1384813730
@@ -421,6 +421,7 @@ MonoBehaviour:
   normal: {x: 0, y: 0, z: -1}
   meshMaterial: {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
   meshGameObjectToSlice: {fileID: 0}
+  makePiecesDrop: 1
 --- !u!4 &2093990929
 Transform:
   m_ObjectHideFlags: 0

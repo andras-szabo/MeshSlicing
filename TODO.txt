@@ -18,7 +18,19 @@ o decide which kind of cut it is
 o create new meshes based on that
 
 === Make it look pretty
-- add rigidbody, mesh collider ?
+o add rigidbody, mesh collider ?
+
+=== Now, slice a quad, or something that has more triangles.
+- so how about this:
+	- iterate through all triangles in a mesh.
+		- decide if a tri is above or below the cut.
+		- if it's not cut, just copy it to the new mesh (above or below).
+			- so yeah, new meshes will have separate tris, always, so maybe we can optimize later
+		- if it's cut, then:
+			- copy the appropriate parts to the appropriate meshes (above or below)
+
+	- profit.
+	- o.c. probably lot of optimizations could be made, but let's just do this to see if it works.
 
 + interpolate normals
 + interpolate UVs
