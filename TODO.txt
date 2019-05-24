@@ -34,11 +34,19 @@ o so how about this:
 	o yes it does ^_^
 
 = to 0.1:
-- fix normals
-- do a donut
-- add some small force to make it look woah
+o fix normals
+o do a donut
+o add some small force to make it look woah
+o add some coloured material
+o slice all the things?
+	- when the slice is set, cast rays
+		- from start
+		- from end
+		- in between in reasonable steps - what's reasonable tho?
+	- slice things that are hit
 
 + cover the insides, as if the cut objects were solid
++ better cut plane
 + apply it dynamically to whatever
 + further optimalizations
 + interpolate normals

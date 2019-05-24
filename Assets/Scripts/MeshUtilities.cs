@@ -118,8 +118,10 @@ public static class MeshUtilities
 
 		if (makeDrop)
 		{
-			rb.AddForce(cutNormal * 1.2f * (aboveCut ? 1f : -1f), ForceMode.VelocityChange);
+			rb.AddForce(cutNormal * 1.8f * (aboveCut ? 1f : -1f), ForceMode.VelocityChange);
 		}
+
+		go.layer = LayerMask.NameToLayer("Sliceable");
 
 		return go;
 	}
@@ -457,9 +459,13 @@ public static class MeshUtilities
 
 	private static Vector3 CalculateCutNormal(Vector3 cutStartWorldSpace, Vector3 cutEndWorldSpace, bool log)
 	{
-		var delta = cutEndWorldSpace - cutStartWorldSpace;
-		var rotation = Quaternion.Euler(0f, 0f, 90f);
-		return (rotation * delta).normalized;
+		var delta = (cutEndWorldSpace - cutStartWorldSpace).normalized;
+		var toCam = (Camera.main.transform.position - cutStartWorldSpace).normalized;
+
+		return Vector3.Cross(delta, toCam);
+
+		//var rotation = Quaternion.Euler(0f, 0f, 90f);
+		//return (rotation * delta).normalized;
 	}
 
 	private static void TransformCutToObjectSpace(ref Vector3 cutStartPos, ref Vector3 cutEndPos, ref Vector3 cutNormal,
