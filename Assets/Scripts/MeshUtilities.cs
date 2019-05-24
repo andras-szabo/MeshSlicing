@@ -118,7 +118,7 @@ public static class MeshUtilities
 
 		if (makeDrop)
 		{
-			rb.AddForce(cutNormal * 1.2f * (aboveCut ? 1f : -1f), ForceMode.Impulse);
+			rb.AddForce(cutNormal * 1.2f * (aboveCut ? 1f : -1f), ForceMode.VelocityChange);
 		}
 
 		return go;
