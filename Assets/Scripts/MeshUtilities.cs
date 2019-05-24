@@ -60,11 +60,9 @@ public static class MeshUtilities
 
 		for (int triStartIndex = 0; triStartIndex < meshTriangles.Length; triStartIndex += 3)
 		{
-			// Calculate intersections for tri in mesh that starts at given index
 			var intersection = CalculateIntersections(meshVertices, meshTriangles, meshNormals, triStartIndex, cutStartPos, cutNormal, log);
 			if (intersection.type == CutType.None)
 			{
-				// Not cut => just calculate if this tri is above or below the cut
 				if (IsTriAboveCut(meshVertices, meshTriangles, triStartIndex, cutStartPos, cutNormal, log))
 				{
 					CopyVertsAndNormals(meshVertices, meshTriangles, meshNormals, triStartIndex, vertsAboveCut, normalsAboveCut);
@@ -85,8 +83,6 @@ public static class MeshUtilities
 
 		if (atLeastOneTriangleWasCut)
 		{
-			LogIf(log, "At least one tri was cut!");
-
 			var meshAbove = BuildMesh(vertsAboveCut, normalsAboveCut, log);
 			var meshBelow = BuildMesh(vertsBelowCut, normalsBelowCut, log);
 
@@ -127,7 +123,6 @@ public static class MeshUtilities
 		}
 
 		mesh.triangles = triangles;
-		mesh.RecalculateNormals();
 		mesh.Optimize();
 
 		return mesh;
