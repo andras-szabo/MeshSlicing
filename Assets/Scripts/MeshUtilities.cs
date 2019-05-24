@@ -32,7 +32,8 @@ public static class MeshUtilities
 
 	public static Vector3 staticCutNormal;
 
-	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, bool log = true)
+	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, 
+												bool makePiecesDrop = true, bool log = true)
 	{
 		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
 		LogIf(log, string.Format("Cut normal: {0}", cutNormal));
@@ -55,7 +56,7 @@ public static class MeshUtilities
 
 				var rigidbody = go.AddComponent<Rigidbody>();
 				rigidbody.useGravity = true;
-				rigidbody.isKinematic = false;
+				rigidbody.isKinematic = !makePiecesDrop;
 			}
 
 			return true;
