@@ -17,9 +17,17 @@ public static class MeshUtilities
 		public Vector3 B;
 		public Vector3 C;
 
+		public Vector3 normalA;
+		public Vector3 normalB;
+		public Vector3 normalC;
+
 		public Vector3 Iab;
 		public Vector3 Ibc;
 		public Vector3 Ica;
+
+		public Vector3 normalIAB;
+		public Vector3 normalIBC;
+		public Vector3 normalICA;
 
 		public CutType type;
 		public Vector3 normal;
@@ -147,6 +155,8 @@ public static class MeshUtilities
 		return dot > 0f;
 	}
 
+	//TODO REMOVE
+	/*
 	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material,
 												bool makePiecesDrop = true, bool log = true)
 	{
@@ -183,6 +193,7 @@ public static class MeshUtilities
 
 		return false;
 	}
+	*/
 
 
 	private static void CutTriangleAndCopyVertsAndNormals(Mesh mesh, TriIntersections cut,
@@ -204,19 +215,21 @@ public static class MeshUtilities
 				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
 
 				smallPieceVerts.Add(cut.A); smallPieceVerts.Add(cut.Iab); smallPieceVerts.Add(cut.Ica);
-				for (int i = 0; i < 3; ++i)
-				{
-					//TODO this would be the place to calc new normals & shit
-					smallPieceNorms.Add(cut.normal);
-				}
+
+				smallPieceNorms.Add(cut.normalA);
+				smallPieceNorms.Add(cut.normalIAB);
+				smallPieceNorms.Add(cut.normalICA);
 
 				bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.Iab);
 				bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.B);
-				for (int i = 0; i < 6; ++i)
-				{
-					//TODO this would be the place to calc new normals & shit
-					bigPieceNorms.Add(cut.normal);
-				}
+				
+				bigPieceNorms.Add(cut.normalC);
+				bigPieceNorms.Add(cut.normalICA);
+				bigPieceNorms.Add(cut.normalIAB);
+
+				bigPieceNorms.Add(cut.normalC);
+				bigPieceNorms.Add(cut.normalIAB);
+				bigPieceNorms.Add(cut.normalB);
 
 				break;
 			}
@@ -232,26 +245,27 @@ public static class MeshUtilities
 				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
 
 				smallPieceVerts.Add(cut.B); smallPieceVerts.Add(cut.Ibc); smallPieceVerts.Add(cut.Iab);
-				for (int i = 0; i < 3; ++i)
-				{
-					//TODO this would be the place to calc new normals & shit
-					smallPieceNorms.Add(cut.normal);
-				}
+
+				smallPieceNorms.Add(cut.normalB);
+				smallPieceNorms.Add(cut.normalIBC);
+				smallPieceNorms.Add(cut.normalIAB);
 
 				bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.Ibc);
 				bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.C);
-				for (int i = 0; i < 6; ++i)
-				{
-					//TODO this would be the place to calc new normals & shit
-					bigPieceNorms.Add(cut.normal);
-				}
+
+				bigPieceNorms.Add(cut.normalA);
+				bigPieceNorms.Add(cut.normalIAB);
+				bigPieceNorms.Add(cut.normalIBC);
+
+				bigPieceNorms.Add(cut.normalA);
+				bigPieceNorms.Add(cut.normalIBC);
+				bigPieceNorms.Add(cut.normalC);
 
 				break;
 			}
 
 			case CutType.BCCA:
 			{
-				LogIf(log, "BCCA");
 				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.C - cutStartPos) > 0f;
 
 				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
@@ -261,20 +275,20 @@ public static class MeshUtilities
 				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
 
 				smallPieceVerts.Add(cut.C); smallPieceVerts.Add(cut.Ica); smallPieceVerts.Add(cut.Ibc);
-				for (int i = 0; i < 3; ++i)
-				{
-					//TODO this would be the place to calc new normals & shit
-					smallPieceNorms.Add(cut.normal);
-				}
+				smallPieceNorms.Add(cut.normalC);
+				smallPieceNorms.Add(cut.normalICA);
+				smallPieceNorms.Add(cut.normalIBC);
 
 				bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.Ica);
 				bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.A);
 
-				for (int i = 0; i < 6; ++i)
-				{
-					//TODO this would be the place to calc new normals & shit
-					bigPieceNorms.Add(cut.normal);
-				}
+				bigPieceNorms.Add(cut.normalB);
+				bigPieceNorms.Add(cut.normalIBC);
+				bigPieceNorms.Add(cut.normalICA);
+
+				bigPieceNorms.Add(cut.normalB);
+				bigPieceNorms.Add(cut.normalICA);
+				bigPieceNorms.Add(cut.normalA);
 
 				break;
 			}
@@ -284,6 +298,8 @@ public static class MeshUtilities
 		}
 	}
 
+	//TODO remove
+	/*
 	private static List<GameObject> CreateMeshes(TriIntersections cut, Material material, Transform originalTransform)
 	{
 		Mesh mesh1 = null;
@@ -339,6 +355,7 @@ public static class MeshUtilities
 
 		return null;
 	}
+	*/
 
 	private static TriIntersections CalculateIntersections(Vector3[] meshVertices, int[] meshTriangles, Vector3[] meshNormals,
 														   int triStartIndex,
@@ -379,10 +396,19 @@ public static class MeshUtilities
 			result.B = pointB;
 			result.C = pointC;
 
+			result.normalA = meshNormals[indexA];
+			result.normalB = meshNormals[indexB];
+			result.normalC = meshNormals[indexC];
+
+			//TODO: actually weigh-blend the normals depending on where the cut is
+
+			result.normalIAB = (result.normalA + result.normalB) / 2f;
+			result.normalIBC = (result.normalB + result.normalC) / 2f;
+			result.normalICA = (result.normalC + result.normalA) / 2f;
+
+			//TODO - is this used?
 			result.normal = meshNormals[0];
 		}
-
-		//LogIf(log, string.Format("Intersection count: {0}", intersectCount));
 
 		return result;
 	}
@@ -395,8 +421,6 @@ public static class MeshUtilities
 
 		var aCut = Vector3.Dot(a - cutPlaneOrigin, cutNormal);
 		var bCut = Vector3.Dot(b - cutPlaneOrigin, cutNormal);
-
-		//LogIf(log, string.Format("TryIntersect: aCut: {0}, bCut: {1}", aCut, bCut));
 
 		if (Mathf.Sign(aCut) != Mathf.Sign(bCut))
 		{
@@ -428,7 +452,6 @@ public static class MeshUtilities
 	private static Vector3 CalculateCutNormal(Vector3 cutStartWorldSpace, Vector3 cutEndWorldSpace, bool log)
 	{
 		var delta = cutEndWorldSpace - cutStartWorldSpace;
-		LogIf(log, string.Format("Delta: {0}", delta));
 		var rotation = Quaternion.Euler(0f, 0f, 90f);
 		return (rotation * delta).normalized;
 	}
@@ -437,6 +460,7 @@ public static class MeshUtilities
 												  Transform meshTransform)
 	{
 		var worldToLocal = meshTransform.worldToLocalMatrix;
+
 		cutStartWorldPos = worldToLocal.MultiplyPoint3x4(cutStartWorldPos);
 		cutEndWorldPos = worldToLocal.MultiplyPoint3x4(cutEndWorldPos);
 		cutNormal = worldToLocal.MultiplyPoint3x4(cutNormal);
@@ -475,6 +499,7 @@ public static class MeshUtilities
 		return go;
 	}
 
+	//TODO cleanup
 	public static Mesh CreateSingleTriangleMesh(IEnumerable<Vector3> points, Vector3 normal)
 	{
 		var vertices = new Vector3[3];

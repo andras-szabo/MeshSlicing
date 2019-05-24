@@ -33,6 +33,11 @@ o so how about this:
 	o o.c. probably lot of optimizations could be made, but let's just do this to see if it works.
 	o yes it does ^_^
 
+= to 0.1:
+- fix normals
+- do a donut
+- add some small force to make it look woah
+
 + cover the insides, as if the cut objects were solid
 + apply it dynamically to whatever
 + further optimalizations
