@@ -54,20 +54,24 @@ public static class MeshUtilities
 
 		var atLeastOneTriangleWasCut = false;
 
-		for (int triStartIndex = 0; triStartIndex < mesh.triangles.Length; triStartIndex += 3)
+		var meshVertices = mesh.vertices;
+		var meshTriangles = mesh.triangles;
+		var meshNormals = mesh.normals;
+
+		for (int triStartIndex = 0; triStartIndex < meshTriangles.Length; triStartIndex += 3)
 		{
 			// Calculate intersections for tri in mesh that starts at given index
-			var intersection = CalculateIntersections(mesh, triStartIndex, cutStartPos, cutNormal, log);
+			var intersection = CalculateIntersections(meshVertices, meshTriangles, meshNormals, triStartIndex, cutStartPos, cutNormal, log);
 			if (intersection.type == CutType.None)
 			{
 				// Not cut => just calculate if this tri is above or below the cut
-				if (IsTriAboveCut(mesh, triStartIndex, cutStartPos, cutNormal, log))
+				if (IsTriAboveCut(meshVertices, meshTriangles, triStartIndex, cutStartPos, cutNormal, log))
 				{
-					CopyVertsAndNormals(mesh, triStartIndex, vertsAboveCut, normalsAboveCut);
+					CopyVertsAndNormals(meshVertices, meshTriangles, meshNormals, triStartIndex, vertsAboveCut, normalsAboveCut);
 				}
 				else
 				{
-					CopyVertsAndNormals(mesh, triStartIndex, vertsBelowCut, normalsBelowCut);
+					CopyVertsAndNormals(meshVertices, meshTriangles, meshNormals, triStartIndex, vertsBelowCut, normalsBelowCut);
 				}
 			}
 			else
@@ -129,20 +133,21 @@ public static class MeshUtilities
 		return mesh;
 	}
 
-	private static void CopyVertsAndNormals(Mesh mesh, int triStartIndex, List<Vector3> vertsDst, List<Vector3> normsDst)
+	private static void CopyVertsAndNormals(Vector3[] meshVertices, int[] meshTriangles, Vector3[] meshNormals, 
+											int triStartIndex, List<Vector3> vertsDst, List<Vector3> normsDst)
 	{
 		for (int i = 0; i < 3; ++i)
 		{
-			var index = mesh.triangles[triStartIndex + i];
+			var index = meshTriangles[triStartIndex + i];
 
-			vertsDst.Add(mesh.vertices[index]);
-			normsDst.Add(mesh.normals[index]);
+			vertsDst.Add(meshVertices[index]);
+			normsDst.Add(meshNormals[index]);
 		}
 	}
 
-	private static bool IsTriAboveCut(Mesh mesh, int triStartIndex, Vector3 cutStartPos, Vector3 cutNormal, bool log)
+	private static bool IsTriAboveCut(Vector3[] meshVertices, int[] meshTriangles, int triStartIndex, Vector3 cutStartPos, Vector3 cutNormal, bool log)
 	{
-		var pointInTri = mesh.vertices[mesh.triangles[triStartIndex]];
+		var pointInTri = meshVertices[meshTriangles[triStartIndex]];
 		var dot = Vector3.Dot(cutNormal, pointInTri - cutStartPos);
 		return dot > 0f;
 	}
@@ -151,15 +156,19 @@ public static class MeshUtilities
 												bool makePiecesDrop = true, bool log = true)
 	{
 		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
-		LogIf(log, string.Format("Cut normal: {0}", cutNormal));
+		//LogIf(log, string.Format("Cut normal: {0}", cutNormal));
 		staticCutNormal = cutNormal;
 
 		var meshTransform = meshGO.transform;
 		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, ref cutNormal, meshTransform);
-		LogIf(log, string.Format("Cut: {0} -> {1}; normal: {2}", cutStartPos, cutEndPos, cutNormal));
+		//LogIf(log, string.Format("Cut: {0} -> {1}; normal: {2}", cutStartPos, cutEndPos, cutNormal));
 
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
-		var intersections = CalculateIntersections(mesh, 0, cutStartPos, cutNormal, log);
+		var meshVertices = mesh.vertices;
+		var meshTriangles = mesh.triangles;
+		var meshNormals = mesh.normals;
+		var intersections = CalculateIntersections(meshVertices, meshTriangles, meshNormals, 
+												   0, cutStartPos, cutNormal, log);
 
 		if (intersections.type != CutType.None)
 		{
@@ -336,19 +345,20 @@ public static class MeshUtilities
 		return null;
 	}
 
-	private static TriIntersections CalculateIntersections(Mesh mesh, int triStartIndex,
+	private static TriIntersections CalculateIntersections(Vector3[] meshVertices, int[] meshTriangles, Vector3[] meshNormals,
+														   int triStartIndex,
 														   Vector3 cutStartObjectSpace,
 														   Vector3 cutNormal, bool log)
 	{
 		var result = new TriIntersections();
 
-		var indexA = mesh.triangles[triStartIndex];
-		var indexB = mesh.triangles[triStartIndex + 1];
-		var indexC = mesh.triangles[triStartIndex + 2];
+		var indexA = meshTriangles[triStartIndex];
+		var indexB = meshTriangles[triStartIndex + 1];
+		var indexC = meshTriangles[triStartIndex + 2];
 
-		var pointA = mesh.vertices[indexA];
-		var pointB = mesh.vertices[indexB];
-		var pointC = mesh.vertices[indexC];
+		var pointA = meshVertices[indexA];
+		var pointB = meshVertices[indexB];
+		var pointC = meshVertices[indexC];
 
 		// It doesn't really matter where the origin is, the point is that
 		// it's a point on the plane. I think. So this could be an optimization.
@@ -360,9 +370,9 @@ public static class MeshUtilities
 
 		var intersectCount = 0;
 
-		if (intersectsAB) { intersectCount++; LogIf(log, "Intersects AB"); }
-		if (intersectsBC) { intersectCount++; LogIf(log, "Intersects BC"); }
-		if (intersectsCA) { intersectCount++; LogIf(log, "Intersects CA"); }
+		if (intersectsAB) { intersectCount++; }
+		if (intersectsBC) { intersectCount++; }
+		if (intersectsCA) { intersectCount++; }
 
 		if (intersectCount == 2)
 		{
@@ -374,10 +384,10 @@ public static class MeshUtilities
 			result.B = pointB;
 			result.C = pointC;
 
-			result.normal = mesh.normals[0];
+			result.normal = meshNormals[0];
 		}
 
-		LogIf(log, string.Format("Intersection count: {0}", intersectCount));
+		//LogIf(log, string.Format("Intersection count: {0}", intersectCount));
 
 		return result;
 	}
