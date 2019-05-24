@@ -30,7 +30,6 @@ public static class MeshUtilities
 		public Vector3 normalICA;
 
 		public CutType type;
-		public Vector3 normal;
 	}
 
 	public static void LogIf(bool log, string msg)
@@ -68,7 +67,8 @@ public static class MeshUtilities
 
 		for (int triStartIndex = 0; triStartIndex < meshTriangles.Length; triStartIndex += 3)
 		{
-			var intersection = CalculateIntersections(meshVertices, meshTriangles, meshNormals, triStartIndex, cutStartPos, cutNormal, log);
+			var intersection = CalculateIntersections(meshVertices, meshTriangles, meshNormals, triStartIndex, 
+													  cutStartPos, cutNormal, log);
 			if (intersection.type == CutType.None)
 			{
 				if (IsTriAboveCut(meshVertices, meshTriangles, triStartIndex, cutStartPos, cutNormal, log))
@@ -94,14 +94,15 @@ public static class MeshUtilities
 			var meshAbove = BuildMesh(vertsAboveCut, normalsAboveCut, log);
 			var meshBelow = BuildMesh(vertsBelowCut, normalsBelowCut, log);
 
-			var goAbove = BuildGO(meshAbove, string.Format("{0}_above", meshGO.name), meshTransform, material, makePiecesDrop, log);
-			var goBelow = BuildGO(meshBelow, string.Format("{0}_below", meshGO.name), meshTransform, material, makePiecesDrop, log);
+			var goAbove = BuildGO(meshAbove, string.Format("{0}_above", meshGO.name), meshTransform, material, cutNormal, true, makePiecesDrop, log);
+			var goBelow = BuildGO(meshBelow, string.Format("{0}_below", meshGO.name), meshTransform, material, cutNormal, false, makePiecesDrop, log);
 		}
 
 		return atLeastOneTriangleWasCut;
 	}
 
-	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material, bool makeDrop, bool log)
+	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material, 
+									  Vector3 cutNormal, bool aboveCut, bool makeDrop, bool log)
 	{
 		var go = CreateMeshGameObject(mesh, goName, material);
 
@@ -114,6 +115,11 @@ public static class MeshUtilities
 		var rb = go.AddComponent<Rigidbody>();
 		rb.useGravity = true;
 		rb.isKinematic = !makeDrop;
+
+		if (makeDrop)
+		{
+			rb.AddForce(cutNormal * 1.2f * (aboveCut ? 1f : -1f), ForceMode.Impulse);
+		}
 
 		return go;
 	}
@@ -194,7 +200,6 @@ public static class MeshUtilities
 		return false;
 	}
 	*/
-
 
 	private static void CutTriangleAndCopyVertsAndNormals(Mesh mesh, TriIntersections cut,
 														  Vector3 cutStartPos, Vector3 cutNormal,
@@ -405,9 +410,6 @@ public static class MeshUtilities
 			result.normalIAB = (result.normalA + result.normalB) / 2f;
 			result.normalIBC = (result.normalB + result.normalC) / 2f;
 			result.normalICA = (result.normalC + result.normalA) / 2f;
-
-			//TODO - is this used?
-			result.normal = meshNormals[0];
 		}
 
 		return result;
@@ -437,8 +439,12 @@ public static class MeshUtilities
 			if (denominator != 0f)
 			{
 				var t = Vector3.Dot(-a + cutPlaneOrigin, cutNormal) / denominator;
-				intersectionPoint = a + (b - a) * t;
-				doesIntersect = true;
+
+				if (t > 0f && t < 1f)
+				{
+					intersectionPoint = a + (b - a) * t;
+					doesIntersect = true;
+				}
 			}
 			else
 			{
@@ -456,14 +462,14 @@ public static class MeshUtilities
 		return (rotation * delta).normalized;
 	}
 
-	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, ref Vector3 cutNormal,
+	private static void TransformCutToObjectSpace(ref Vector3 cutStartPos, ref Vector3 cutEndPos, ref Vector3 cutNormal,
 												  Transform meshTransform)
 	{
 		var worldToLocal = meshTransform.worldToLocalMatrix;
 
-		cutStartWorldPos = worldToLocal.MultiplyPoint3x4(cutStartWorldPos);
-		cutEndWorldPos = worldToLocal.MultiplyPoint3x4(cutEndWorldPos);
-		cutNormal = worldToLocal.MultiplyPoint3x4(cutNormal);
+		cutStartPos = worldToLocal.MultiplyPoint3x4(cutStartPos);
+		cutEndPos = worldToLocal.MultiplyPoint3x4(cutEndPos);
+		cutNormal = worldToLocal.MultiplyVector(cutNormal);
 	}
 
 	private static Mesh CreateMultiTriangleMesh(Vector3[] vertices, Vector3 normal)
