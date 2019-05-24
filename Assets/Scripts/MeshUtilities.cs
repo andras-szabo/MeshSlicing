@@ -30,14 +30,17 @@ public static class MeshUtilities
 		if (log) { Debug.LogWarning(msg); }
 	}
 
+	public static Vector3 staticCutNormal;
+
 	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, bool log = true)
 	{
-		var meshTransform = meshGO.transform;
-		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, meshTransform);
-		LogIf(log, string.Format("Cut: {0} -> {1}", cutStartPos, cutEndPos));
-
-		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, meshTransform.forward, log);
+		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
 		LogIf(log, string.Format("Cut normal: {0}", cutNormal));
+		staticCutNormal = cutNormal;
+
+		var meshTransform = meshGO.transform;
+		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, ref cutNormal, meshTransform);
+		LogIf(log, string.Format("Cut: {0} -> {1}; normal: {2}", cutStartPos, cutEndPos, cutNormal));
 
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
 		var intersections = CalculateIntersections(mesh, cutStartPos, cutEndPos, cutNormal, log);
@@ -170,6 +173,8 @@ public static class MeshUtilities
 		var aCut = Vector3.Dot(a - cutPlaneOrigin, cutNormal);
 		var bCut = Vector3.Dot(b - cutPlaneOrigin, cutNormal);
 
+		LogIf(log, string.Format("TryIntersect: aCut: {0}, bCut: {1}", aCut, bCut));
+
 		if (Mathf.Sign(aCut) != Mathf.Sign(bCut))
 		{
 			// "ab" is a ray, such that: some point p = a + (b - a) * t.
@@ -197,19 +202,21 @@ public static class MeshUtilities
 		return doesIntersect;
 	}
 
-	private static Vector3 CalculateCutNormal(Vector3 cutStartObjectSpace, Vector3 cutEndObjectSpace, Vector3 localForward, bool log)
+	private static Vector3 CalculateCutNormal(Vector3 cutStartWorldSpace, Vector3 cutEndWorldSpace, bool log)
 	{
-		var delta = cutEndObjectSpace - cutStartObjectSpace;
+		var delta = cutEndWorldSpace - cutStartWorldSpace;
 		LogIf(log, string.Format("Delta: {0}", delta));
-		var rotation = Quaternion.AngleAxis(90f, localForward);
+		var rotation = Quaternion.Euler(0f, 0f, 90f);
 		return (rotation * delta).normalized;
 	}
 
-	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, Transform meshTransform)
+	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, ref Vector3 cutNormal, 
+												  Transform meshTransform)
 	{
 		var worldToLocal = meshTransform.worldToLocalMatrix;
 		cutStartWorldPos = worldToLocal.MultiplyPoint3x4(cutStartWorldPos);
 		cutEndWorldPos = worldToLocal.MultiplyPoint3x4(cutEndWorldPos);
+		cutNormal = worldToLocal.MultiplyPoint3x4(cutNormal);
 	}
 
 	private static Mesh CreateMultiTriangleMesh(Vector3[] vertices, Vector3 normal)

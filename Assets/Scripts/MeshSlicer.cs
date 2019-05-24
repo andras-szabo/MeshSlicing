@@ -15,12 +15,14 @@ public class MeshSlicer : MonoBehaviour
 	private Vector3 _cutEndPoint;
 
 	private bool _hasStartedMarkingTheCut;
+	private bool _shouldDrawCutNormal;
 
 	public void CleanupCut()
 	{
 		_cutStartPoint = Vector3.zero;
 		_cutEndPoint = Vector3.zero;
 		_hasStartedMarkingTheCut = false;
+		_shouldDrawCutNormal = false;
 	}
 
 	private void Update()
@@ -29,6 +31,7 @@ public class MeshSlicer : MonoBehaviour
 		{
 			_cutStartPoint = GetMousePoint(log: true);
 			_hasStartedMarkingTheCut = true;
+			_shouldDrawCutNormal = false;
 		}
 
 		if (_hasStartedMarkingTheCut && Input.GetMouseButton(0))
@@ -49,6 +52,12 @@ public class MeshSlicer : MonoBehaviour
 		{
 			Gizmos.color = Color.red;
 			Gizmos.DrawLine(_cutStartPoint, _cutEndPoint);
+
+			if (_shouldDrawCutNormal)
+			{
+				Gizmos.color = Color.blue;
+				Gizmos.DrawLine(_cutStartPoint, _cutStartPoint + MeshUtilities.staticCutNormal);
+			}
 		}
 	}
 
@@ -62,9 +71,11 @@ public class MeshSlicer : MonoBehaviour
 			if (couldSlice)
 			{
 				UnityEngine.Object.Destroy(meshGameObjectToSlice);
-				CleanupCut();
+				// CleanupCut();
 				meshGameObjectToSlice = null;
 			}
+
+			_shouldDrawCutNormal = true;
 		}
 		else
 		{
