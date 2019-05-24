@@ -13,11 +13,13 @@ o calculate cut normal
 		o just rotate around _local_ forward
 
 o calculate intersections Iab, Ibc, Iac
-
 o reject if there are no 2 intersections
+o decide which kind of cut it is
+o create new meshes based on that
 
-- decide which kind of cut it is
-- create new meshes based on that
+=== Make it look pretty
+- add rigidbody, mesh collider ?
+
 + interpolate normals
 + interpolate UVs
 + reject not full slices

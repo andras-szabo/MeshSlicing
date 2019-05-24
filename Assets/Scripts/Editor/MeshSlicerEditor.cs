@@ -53,7 +53,10 @@ public class MeshSlicerEditor : Editor
 	{
 		foreach (var go in _createdGameObjects)
 		{
-			UnityEngine.Object.DestroyImmediate(go);
+			if (go != null)
+			{
+				UnityEngine.Object.DestroyImmediate(go);
+			}
 		}
 
 		_createdGameObjects.Clear();

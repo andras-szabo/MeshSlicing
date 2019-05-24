@@ -30,7 +30,7 @@ public static class MeshUtilities
 		if (log) { Debug.LogWarning(msg); }
 	}
 
-	public static void SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, bool log = true)
+	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, bool log = true)
 	{
 		var meshTransform = meshGO.transform;
 		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, meshTransform);
@@ -44,31 +44,76 @@ public static class MeshUtilities
 
 		if (intersections.type != CutType.None)
 		{
-			CreateMeshes(intersections, material);
+			var meshGOs = CreateMeshes(intersections, material, meshGO.transform);
+			foreach (var go in meshGOs)
+			{
+				var collider = go.AddComponent<MeshCollider>();
+				collider.convex = true;
+
+				var rigidbody = go.AddComponent<Rigidbody>();
+				rigidbody.useGravity = true;
+				rigidbody.isKinematic = false;
+			}
+
+			return true;
 		}
+
+		return false;
 	}
 
-	private static void CreateMeshes(TriIntersections cut, Material material)
+	private static List<GameObject> CreateMeshes(TriIntersections cut, Material material, Transform originalTransform)
 	{
+		Mesh mesh1 = null;
+		Mesh mesh2 = null;
+
 		switch (cut.type)
 		{
 			case CutType.ABCA:
 			{
-				var mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.A, cut.Iab, cut.Ica }, cut.normal);
-				var mesh2 = CreateMultiTriangleMesh(new Vector3[]
-						{
-							cut.C, cut.Ica, cut.Iab,
-							cut.C, cut.Iab, cut.B
-						}, cut.normal);
+				mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.A, cut.Iab, cut.Ica }, cut.normal);
+				mesh2 = CreateMultiTriangleMesh(new Vector3[]
+						{ cut.C, cut.Ica, cut.Iab,
+						cut.C, cut.Iab, cut.B }, cut.normal);
+				break;
+			}
 
-				var go1 = CreateMeshGameObject(mesh1, "Small bit", material);
-				var go2 = CreateMeshGameObject(mesh2, "Larger bit", material);	
+			case CutType.ABBC:
+			{
+				mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.B, cut.Ibc, cut.Iab }, cut.normal);
+				mesh2 = CreateMultiTriangleMesh(new Vector3[]
+						{ cut.A, cut.Iab, cut.Ibc,
+						cut.A, cut.Ibc, cut.C }, cut.normal);
+				break;
+			}
 
+			case CutType.BCCA:
+			{
+				mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.C, cut.Ica, cut.Ibc }, cut.normal);
+				mesh2 = CreateMultiTriangleMesh(new Vector3[]
+						{ cut.B, cut.Ibc, cut.Ica,
+						cut.B, cut.Ica, cut.A }, cut.normal);
 				break;
 			}
 			default:
 				break;
 		}
+
+		if (mesh1 != null && mesh2 != null)
+		{
+			var go1 = CreateMeshGameObject(mesh1, "Small bit", material);
+			var go2 = CreateMeshGameObject(mesh2, "Larger bit", material);
+
+			go1.transform.rotation = originalTransform.rotation;
+			go1.transform.localScale = originalTransform.localScale;
+
+			go2.transform.rotation = originalTransform.rotation;
+			go2.transform.localScale = originalTransform.localScale;
+
+			var result = new List<GameObject> { go1, go2 };
+			return result;
+		}
+
+		return null;
 	}
 
 
@@ -166,14 +211,14 @@ public static class MeshUtilities
 		cutStartWorldPos = worldToLocal.MultiplyPoint3x4(cutStartWorldPos);
 		cutEndWorldPos = worldToLocal.MultiplyPoint3x4(cutEndWorldPos);
 	}
-	
+
 	private static Mesh CreateMultiTriangleMesh(Vector3[] vertices, Vector3 normal)
 	{
 		var normals = new Vector3[vertices.Length];
 		var triangles = new int[vertices.Length];
 
-		for (int i = 0; i < normals.Length; ++i) 
-		{ 
+		for (int i = 0; i < normals.Length; ++i)
+		{
 			normals[i] = normal;
 
 			// So we're duplicating vertices here, yes.
