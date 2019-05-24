@@ -68,7 +68,8 @@ public class MeshSlicer : MonoBehaviour
 
 		if (meshGameObjectToSlice != null)
 		{
-			var couldSlice = MeshUtilities.SliceSingleTriangleMesh(meshGameObjectToSlice, _cutStartPoint, _cutEndPoint, meshMaterial, makePiecesDrop);
+			//var couldSlice = MeshUtilities.SliceSingleTriangleMesh(meshGameObjectToSlice, _cutStartPoint, _cutEndPoint, meshMaterial, makePiecesDrop);
+			var couldSlice = MeshUtilities.SliceMultiTriangleMesh(meshGameObjectToSlice, _cutStartPoint, _cutEndPoint, meshMaterial, makePiecesDrop, false);
 			if (couldSlice)
 			{
 				UnityEngine.Object.Destroy(meshGameObjectToSlice);

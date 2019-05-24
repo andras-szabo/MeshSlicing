@@ -35,6 +35,9 @@ public static class MeshUtilities
 	public static bool SliceMultiTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material,
 												bool makePiecesDrop = true, bool log = true)
 	{
+		// TODO: it might make sense to check in advance somehow if anything is going to be affected
+		// by the cut, even if we don't actually do anything if it's not.
+
 		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
 		staticCutNormal = cutNormal;
 
@@ -43,32 +46,108 @@ public static class MeshUtilities
 
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
 
+		var vertsAboveCut = new List<Vector3>();
+		var normalsAboveCut = new List<Vector3>();
+
+		var vertsBelowCut = new List<Vector3>();
+		var normalsBelowCut = new List<Vector3>();
+
+		var atLeastOneTriangleWasCut = false;
+
 		for (int triStartIndex = 0; triStartIndex < mesh.triangles.Length; triStartIndex += 3)
 		{
 			// Calculate intersections for tri in mesh that starts at given index
-			var intersection = CalculateIntersections(mesh, triStartIndex, cutStartPos, cutEndPos, cutNormal, log);
+			var intersection = CalculateIntersections(mesh, triStartIndex, cutStartPos, cutNormal, log);
 			if (intersection.type == CutType.None)
 			{
 				// Not cut => just calculate if this tri is above or below the cut
-			//	if (IsTriAboveCut(mesh, triStartIndex, cutStartPos, cutNormal, log))
+				if (IsTriAboveCut(mesh, triStartIndex, cutStartPos, cutNormal, log))
 				{
-					// Copy triangle to mesh above
+					CopyVertsAndNormals(mesh, triStartIndex, vertsAboveCut, normalsAboveCut);
 				}
-				//else
+				else
 				{
-					// Copy triangle to mesh below
+					CopyVertsAndNormals(mesh, triStartIndex, vertsBelowCut, normalsBelowCut);
 				}
 			}
 			else
 			{
-				// switch on the type of cut, and decide where to add which mesh piece
+				atLeastOneTriangleWasCut = true;
+				CutTriangleAndCopyVertsAndNormals(mesh, intersection, cutStartPos, cutNormal,
+												  vertsAboveCut, normalsAboveCut, 
+												  vertsBelowCut, normalsBelowCut, log);
 			}
 		}
-			   
-		return false;
+
+		if (atLeastOneTriangleWasCut)
+		{
+			LogIf(log, "At least one tri was cut!");
+
+			var meshAbove = BuildMesh(vertsAboveCut, normalsAboveCut, log);
+			var meshBelow = BuildMesh(vertsBelowCut, normalsBelowCut, log);
+
+			var goAbove = BuildGO(meshAbove, string.Format("{0}_above", meshGO.name), meshTransform, material, makePiecesDrop, log);
+			var goBelow = BuildGO(meshBelow, string.Format("{0}_below", meshGO.name), meshTransform, material, makePiecesDrop, log);
+		}
+
+		return atLeastOneTriangleWasCut;
 	}
 
-	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material, 
+	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material, bool makeDrop, bool log)
+	{
+		var go = CreateMeshGameObject(mesh, goName, material);
+
+		go.transform.SetPositionAndRotation(transformTemplate.position, transformTemplate.rotation);
+		go.transform.localScale = transformTemplate.localScale;
+
+		var collider = go.AddComponent<MeshCollider>();
+		collider.convex = true;
+
+		var rb = go.AddComponent<Rigidbody>();
+		rb.useGravity = true;
+		rb.isKinematic = !makeDrop;
+
+		return go;
+	}
+
+	private static Mesh BuildMesh(List<Vector3> verts, List<Vector3> norms, bool log)
+	{
+		var mesh = new Mesh();
+		mesh.vertices = verts.ToArray();
+		mesh.normals = norms.ToArray();
+		
+		var triangles = new int[verts.Count];
+		for (int i = 0; i < triangles.Length; ++i)
+		{
+			triangles[i] = i;
+		}
+
+		mesh.triangles = triangles;
+		mesh.RecalculateNormals();
+		mesh.Optimize();
+
+		return mesh;
+	}
+
+	private static void CopyVertsAndNormals(Mesh mesh, int triStartIndex, List<Vector3> vertsDst, List<Vector3> normsDst)
+	{
+		for (int i = 0; i < 3; ++i)
+		{
+			var index = mesh.triangles[triStartIndex + i];
+
+			vertsDst.Add(mesh.vertices[index]);
+			normsDst.Add(mesh.normals[index]);
+		}
+	}
+
+	private static bool IsTriAboveCut(Mesh mesh, int triStartIndex, Vector3 cutStartPos, Vector3 cutNormal, bool log)
+	{
+		var pointInTri = mesh.vertices[mesh.triangles[triStartIndex]];
+		var dot = Vector3.Dot(cutNormal, pointInTri - cutStartPos);
+		return dot > 0f;
+	}
+
+	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material,
 												bool makePiecesDrop = true, bool log = true)
 	{
 		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
@@ -80,7 +159,7 @@ public static class MeshUtilities
 		LogIf(log, string.Format("Cut: {0} -> {1}; normal: {2}", cutStartPos, cutEndPos, cutNormal));
 
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
-		var intersections = CalculateIntersections(mesh, 0, cutStartPos, cutEndPos, cutNormal, log);
+		var intersections = CalculateIntersections(mesh, 0, cutStartPos, cutNormal, log);
 
 		if (intersections.type != CutType.None)
 		{
@@ -101,6 +180,106 @@ public static class MeshUtilities
 		return false;
 	}
 
+
+	private static void CutTriangleAndCopyVertsAndNormals(Mesh mesh, TriIntersections cut,
+														  Vector3 cutStartPos, Vector3 cutNormal,
+														  List<Vector3> vertsAbove, List<Vector3> normsAbove,
+														  List<Vector3> vertsBelow, List<Vector3> normsBelow, bool log)
+	{
+		switch (cut.type)
+		{
+			case CutType.ABCA:
+			{
+				LogIf(log, "ABCA");
+				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.A - cutStartPos) > 0f;
+
+				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
+				List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
+
+				List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
+				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
+
+				smallPieceVerts.Add(cut.A); smallPieceVerts.Add(cut.Iab); smallPieceVerts.Add(cut.Ica);
+				for (int i = 0; i < 3; ++i)
+				{
+					//TODO this would be the place to calc new normals & shit
+					smallPieceNorms.Add(cut.normal);
+				}
+
+				bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.Iab);
+				bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.B);
+				for (int i = 0; i < 6; ++i)
+				{
+					//TODO this would be the place to calc new normals & shit
+					bigPieceNorms.Add(cut.normal);
+				}
+
+				break;
+			}
+
+			case CutType.ABBC:
+			{
+				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.B - cutStartPos) > 0f;
+
+				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
+				List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
+
+				List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
+				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
+
+				smallPieceVerts.Add(cut.B); smallPieceVerts.Add(cut.Ibc); smallPieceVerts.Add(cut.Iab);
+				for (int i = 0; i < 3; ++i)
+				{
+					//TODO this would be the place to calc new normals & shit
+					smallPieceNorms.Add(cut.normal);
+				}
+
+				bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.Ibc);
+				bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.C);
+				for (int i = 0; i < 6; ++i)
+				{
+					//TODO this would be the place to calc new normals & shit
+					bigPieceNorms.Add(cut.normal);
+				}
+
+				break;
+			}
+
+			case CutType.BCCA:
+			{
+				LogIf(log, "BCCA");
+				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.C - cutStartPos) > 0f;
+
+				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
+				List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
+
+				List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
+				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
+
+				smallPieceVerts.Add(cut.C); smallPieceVerts.Add(cut.Ica); smallPieceVerts.Add(cut.Ibc);
+				for (int i = 0; i < 3; ++i)
+				{
+					//TODO this would be the place to calc new normals & shit
+					smallPieceNorms.Add(cut.normal);
+				}
+
+				bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.Ica);
+				bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.A);
+
+				for (int i = 0; i < 6; ++i)
+				{
+					//TODO this would be the place to calc new normals & shit
+					bigPieceNorms.Add(cut.normal);
+				}
+
+				break;
+			}
+
+			default:
+				break;
+		}
+	}
+
 	private static List<GameObject> CreateMeshes(TriIntersections cut, Material material, Transform originalTransform)
 	{
 		Mesh mesh1 = null;
@@ -108,34 +287,35 @@ public static class MeshUtilities
 
 		switch (cut.type)
 		{
-			case CutType.ABCA:
-			{
-				mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.A, cut.Iab, cut.Ica }, cut.normal);
-				mesh2 = CreateMultiTriangleMesh(new Vector3[]
-						{ cut.C, cut.Ica, cut.Iab,
+				case CutType.ABCA:
+				{
+					mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.A, cut.Iab, cut.Ica }, cut.normal);
+					mesh2 = CreateMultiTriangleMesh(new Vector3[]
+							{ cut.C, cut.Ica, cut.Iab,
 						cut.C, cut.Iab, cut.B }, cut.normal);
-				break;
-			}
+					break;
+				}
 
-			case CutType.ABBC:
-			{
-				mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.B, cut.Ibc, cut.Iab }, cut.normal);
-				mesh2 = CreateMultiTriangleMesh(new Vector3[]
-						{ cut.A, cut.Iab, cut.Ibc,
+				case CutType.ABBC:
+				{
+					mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.B, cut.Ibc, cut.Iab }, cut.normal);
+					mesh2 = CreateMultiTriangleMesh(new Vector3[]
+							{ cut.A, cut.Iab, cut.Ibc,
 						cut.A, cut.Ibc, cut.C }, cut.normal);
-				break;
-			}
+					break;
+				}
 
-			case CutType.BCCA:
-			{
-				mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.C, cut.Ica, cut.Ibc }, cut.normal);
-				mesh2 = CreateMultiTriangleMesh(new Vector3[]
-						{ cut.B, cut.Ibc, cut.Ica,
+				case CutType.BCCA:
+				{
+					mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.C, cut.Ica, cut.Ibc }, cut.normal);
+					mesh2 = CreateMultiTriangleMesh(new Vector3[]
+							{ cut.B, cut.Ibc, cut.Ica,
 						cut.B, cut.Ica, cut.A }, cut.normal);
-				break;
-			}
-			default:
-				break;
+					break;
+				}
+
+				default:
+					break;
 		}
 
 		if (mesh1 != null && mesh2 != null)
@@ -156,7 +336,8 @@ public static class MeshUtilities
 		return null;
 	}
 
-	private static TriIntersections CalculateIntersections(Mesh mesh, int triStartIndex, Vector3 cutStartObjectSpace, Vector3 cutEndObjectSpace,
+	private static TriIntersections CalculateIntersections(Mesh mesh, int triStartIndex,
+														   Vector3 cutStartObjectSpace,
 														   Vector3 cutNormal, bool log)
 	{
 		var result = new TriIntersections();
@@ -210,7 +391,7 @@ public static class MeshUtilities
 		var aCut = Vector3.Dot(a - cutPlaneOrigin, cutNormal);
 		var bCut = Vector3.Dot(b - cutPlaneOrigin, cutNormal);
 
-		LogIf(log, string.Format("TryIntersect: aCut: {0}, bCut: {1}", aCut, bCut));
+		//LogIf(log, string.Format("TryIntersect: aCut: {0}, bCut: {1}", aCut, bCut));
 
 		if (Mathf.Sign(aCut) != Mathf.Sign(bCut))
 		{
@@ -247,7 +428,7 @@ public static class MeshUtilities
 		return (rotation * delta).normalized;
 	}
 
-	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, ref Vector3 cutNormal, 
+	private static void TransformCutToObjectSpace(ref Vector3 cutStartWorldPos, ref Vector3 cutEndWorldPos, ref Vector3 cutNormal,
 												  Transform meshTransform)
 	{
 		var worldToLocal = meshTransform.worldToLocalMatrix;
