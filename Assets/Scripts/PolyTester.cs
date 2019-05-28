@@ -74,8 +74,10 @@ public class PolyTester : MonoBehaviour
 		var polygonNormal = new Vector3(0f, 0f, -1f);
 
 		Triangulator.SortVerticesByAngleType(_poly, polygonNormal, _convex, _reflex);
-		Triangulator.SetupPolyVerts(_poly, _polyVerts, _convex);
+		Triangulator.SetupPolyVerts(_poly, _polyVerts, polygonNormal);
 		var earCount = Triangulator.TryFindEarindices(_poly, _polyVerts, _earIndices);
+
+		Debug.LogFormat("Ear count: {0}", earCount);
 
 		_tris = Triangulator.TriangulatePolygon(_poly, polygonNormal);
 	}

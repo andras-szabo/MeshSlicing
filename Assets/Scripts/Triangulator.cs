@@ -1,9 +1,10 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public static class Triangulator
 {
+	//TODO - this could be optimized- it creates a lot of garbage
+	//		 with the HashSet.
 	public class VertexList
 	{
 		public int Count { get { return _indicesSet.Count; } }
@@ -72,13 +73,9 @@ public static class Triangulator
 		}
 
 		var earIndices = new VertexList(vertices.Count);
-		var reflexVertices = new VertexList(vertices.Count);
-		var convexVertices = new VertexList(vertices.Count);
-
 		var polyVerts = new List<PolyVertex>(vertices.Count);
 
-		SortVerticesByAngleType(vertices, polygonNormal, convexVertices, reflexVertices);
-		SetupPolyVerts(vertices, polyVerts, convexVertices);
+		SetupPolyVerts(vertices, polyVerts, polygonNormal);
 		TryFindEarindices(vertices, polyVerts, earIndices);
 
 		// Start chopping off ears.
@@ -129,6 +126,7 @@ public static class Triangulator
 	{
 		// 1.) if prev was convex, do nothing.
 		// 2.) if prev was reflex, re-check, and modify convex / reflex lists.
+		// 3.) if convex, update its ear status.
 
 		if (!pv.isConvex)
 		{
@@ -137,9 +135,6 @@ public static class Triangulator
 			var next = vertices[pv.nextIndex];
 
 			pv.isConvex = IsFacingSameAsPolyNormal(prev, tip, next, polygonNormal);
-
-			// If we kept separate lists of conv and refl, they should get modified here.
-			// TODO: clean those up - we don't really need them actually.
 		}
 
 		if (pv.isConvex)
@@ -153,14 +148,9 @@ public static class Triangulator
 				else { ears.RemoveIndex(pv.currIndex); }
 			}
 		}
-
-		// 3.) if (re-checked) prev is convex, then check if it's an ear.
-		//		- if it's an ear, and it's not on the list, add it to the ear list.
-		//		- it it's not an ear, but it's on the list, remove it from the ear list, tho can this happen?
-
 	}
 
-	public static void SetupPolyVerts(List<Vector3> vertices, List<PolyVertex> polyVerts, VertexList convex)
+	public static void SetupPolyVerts(List<Vector3> vertices, List<PolyVertex> polyVerts, Vector3 polygonNormal)
 	{
 		for (int i = 0; i < vertices.Count; ++i)
 		{
@@ -169,7 +159,8 @@ public static class Triangulator
 			curr.currIndex = i;
 			curr.prevIndex = i == 0 ? vertices.Count - 1 : i - 1;
 			curr.nextIndex = (i + 1) % vertices.Count;
-			curr.isConvex = convex.Contains(i);
+
+			curr.isConvex = IsFacingSameAsPolyNormal(vertices[curr.prevIndex], vertices[curr.currIndex], vertices[curr.nextIndex], polygonNormal);
 
 			polyVerts.Add(curr);
 		}
