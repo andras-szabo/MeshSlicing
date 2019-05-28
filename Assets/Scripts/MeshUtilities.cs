@@ -48,24 +48,24 @@ public static class MeshUtilities
 			return false;
 		}
 
-		// This is how this works: define vectors AB, BC, and CA, and
-		// AP, BP, CP. Then P is inside the ABC triangle iff AB x AP,
-		// BC x BP, and CA x CP all point in the same direction. So
-		// what is AB x AP? A vector perpendicular to both AB and AP,
-		// pointing into some random direction, indicating whether or not
-		// we're taking a right turn or a left turn. We're then asking,
-		// are we ALWAYS taking a right turn (or left turn)? This works,
-		// because if the point is INSIDE the triangle, it will ALWAYS be
-		// on the left (or right, depending on the CW or CCW order of the
-		// coordinates) side.
-
-		// Basically, think of the triangle edges as a fence. Say the
-		// vertices are ordered clockwise. Then, as you follow the edges
-		// of the triangle, whatever is inside it will always be on
-		// your right side.
-
-		// To tell if the cross products are roughly pointing in the same
-		// direction, we can use the dot product.
+		/* This is how this works: define vectors AB, BC, and CA, and
+		* AP, BP, CP. Then P is inside the ABC triangle iff AB x AP,
+		* BC x BP, and CA x CP all point in the same direction. So
+		* what is AB x AP? A vector perpendicular to both AB and AP,
+		* pointing into some random direction, indicating whether or not
+		* we're taking a right turn or a left turn. We're then asking,
+		* are we ALWAYS taking a right turn (or left turn)? This works,
+		* because if the point is INSIDE the triangle, it will ALWAYS be
+		* on the left (or right, depending on the CW or CCW order of the
+		* coordinates) side.
+		*
+		* Basically, think of the triangle edges as a fence. Say the
+		* vertices are ordered clockwise. Then, as you follow the edges
+		* of the triangle, whatever is inside it will always be on
+		* your right side.
+		*
+		* To tell if the cross products are roughly pointing in the same
+		* direction, we can use the dot product.*/
 
 		var abXap = Vector3.Cross(b - a, point - a);
 		var bcXbp = Vector3.Cross(c - b, point - b);
