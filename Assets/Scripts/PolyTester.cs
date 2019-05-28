@@ -4,14 +4,17 @@ using UnityEngine;
 public class PolyTester : MonoBehaviour
 {
 	private List<Vector3> _poly = new List<Vector3>();
+	private List<Vector3> _tris = new List<Vector3>();
+	private List<Triangulator.PolyVertex> _polyVerts = new List<Triangulator.PolyVertex>();
 	private bool _isDone;
 
 	private Triangulator.VertexList _convex;
 	private Triangulator.VertexList _reflex;
+	private Triangulator.VertexList _earIndices;
 
 	private void Start()
 	{
-		Debug.Log("Add vertices with left click, toggle finish by right click. Backspace for clear.");
+		Debug.Log("Add vertices with left click IN CLOCKWISE ORDER, toggle finish by right click. Backspace for clear.");
 	}
 
 	private void Update()
@@ -53,20 +56,28 @@ public class PolyTester : MonoBehaviour
 	{
 		// For now, just indicate convex and reflex vertices
 
-		if (_convex == null || _reflex == null)
+		if (_convex == null || _reflex == null || _earIndices == null)
 		{
 			_convex = new Triangulator.VertexList(_poly.Count);
 			_reflex = new Triangulator.VertexList(_poly.Count);
+			_earIndices = new Triangulator.VertexList(_poly.Count);
 		}
 		else
 		{
 			_convex.Clear(_poly.Count);
 			_reflex.Clear(_poly.Count);
+			_earIndices.Clear(_poly.Count);
 		}
+
+		_polyVerts = new List<Triangulator.PolyVertex>(_poly.Count);
 
 		var polygonNormal = new Vector3(0f, 0f, -1f);
 
 		Triangulator.SortVerticesByAngleType(_poly, polygonNormal, _convex, _reflex);
+		Triangulator.SetupPolyVerts(_poly, _polyVerts, _convex);
+		var earCount = Triangulator.TryFindEarindices(_poly, _polyVerts, _earIndices);
+
+		_tris = Triangulator.TriangulatePolygon(_poly, polygonNormal);
 	}
 
 	private Vector3 GetMousePoint(bool log = false)
@@ -83,20 +94,22 @@ public class PolyTester : MonoBehaviour
 		if (Application.isPlaying)
 		{
 			if (_isDone) { DrawPolygon(); }
-			DrawSpheresForVertices(convexColor: Color.green, reflexColor: Color.red);
+			DrawSpheresForVertices(convexColor: Color.green, reflexColor: Color.red, earColor: Color.yellow);
 		}
 	}
 
 	private void DrawPolygon()
 	{
 		Gizmos.color = Color.blue;
-		for (int i = 0; i < _poly.Count; ++i)
+		for (int i = 0; i < _tris.Count - 2; i += 3)
 		{
-			Gizmos.DrawLine(_poly[i], _poly[(i + 1) % _poly.Count]);
+			Gizmos.DrawLine(_tris[i], _tris[i + 1]);
+			Gizmos.DrawLine(_tris[i], _tris[i + 2]);
+			Gizmos.DrawLine(_tris[i + 1], _tris[i + 2]);
 		}
 	}
 
-	private void DrawSpheresForVertices(Color convexColor, Color reflexColor)
+	private void DrawSpheresForVertices(Color convexColor, Color reflexColor, Color earColor)
 	{
 		if (!_isDone)
 		{
@@ -110,6 +123,11 @@ public class PolyTester : MonoBehaviour
 			if (_isDone)
 			{
 				Gizmos.color = _convex.Contains(i) ? convexColor : reflexColor;
+
+				if (_earIndices.Contains(i))
+				{
+					Gizmos.color = earColor;
+				}
 			}
 
 			Gizmos.DrawSphere(point, 0.2f);

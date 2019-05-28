@@ -81,7 +81,7 @@ o slice all the things?
 		= and calculate list of initial ear tips onto yet another list
 
 		(= finding ears:
-			= for each tri, check if any other tri is inside
+			= for each tri, check if any other vertex is inside
 				= but for the "inside" check, it's enough to consider reflex vertices ( > PI rad).)
 
 		= then remove ears one at a time.
@@ -128,3 +128,18 @@ o slice all the things?
 			= but it's now an ear => add it to the ear list. ear list now: 2, 8, 0
 
 	... and there you have it.
+
+
+= with holes:
+	= the basic idea is to connect the holes to the outer polygon via two
+	  "mutually visible" vertices that connect through two invisible edges.
+		= then there's an algorithm for finding "mutually visible" 
+		  vertices, but I think it may be a bit overcomplicated
+
+o ok so step 0 for this:
+	o is a point within a triangle? let's do this.
+
+- then, ear clipper algorithm
+	- get ordered list of points
+	(- for holes, get: 1) ordered list of external, 2) counter-ordered list of holes)
+	- identify ears
