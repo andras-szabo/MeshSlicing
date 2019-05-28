@@ -52,3 +52,79 @@ o slice all the things?
 + interpolate normals
 + interpolate UVs
 + reject not full slices
+
+// OK, triangulation things; ear clipping; David Eberly https://www.geometrictools.com/Documentation/TriangulationByEarClipping.pdf
+
+- an ear:
+	- a triangle formed by 3 consecutive vertices v0, v1 and v2, where:
+		- v1 is a convex angle, and
+		- v0 -> v2 lies completely inside the polygon, and
+		- no vertices of the polygon are contained in the triangle other than its own 3 vertices.
+
+-idea:
+	= if the polygon has more than 3 vertices, find an ear and clip it.
+	= now you have a polygon with n-1 vertices; repeat.
+
+	= this would be cubic complexity. why?
+		- give me next 3 verts
+		- for the tri, check if any other points are in the triangle.
+			= so that's ~n * n.
+		- if it's an ear - which it's bound to be, start from scratch.
+		- so again give me the next 3 verts ...
+				= this is the 3rd factor.
+
+	= we can reduce it to quadratic.	
+		= store polygon as a doubly linked list.
+		= for each polygon, calc. angle, and put reflex-angle vertices
+		  onto a separate list as well
+		= let's also have a separate list for the convex-angle vertices
+		= and calculate list of initial ear tips onto yet another list
+
+		(= finding ears:
+			= for each tri, check if any other tri is inside
+				= but for the "inside" check, it's enough to consider reflex vertices ( > PI rad).)
+
+		= then remove ears one at a time.
+		= when an ear is removed, what happens to the adjacent vertices?
+			= if the adjacent vertex is convex, it will stay convex.
+			= if an adjacent vertex was reflex, it may become convex, it may become an ear.
+			
+			=> so if, after the removal of an ear, any adjacent vertex is convex, you need to
+			   check if that one is an ear now.
+
+	= so e.g., suppose that at start:
+		Convex vertices: { 0, 1, 3, 4, 6, 9 }	
+		Reflex vertices: { 2, 5, 7, 8 }
+		Initial ears:    { 3, 4, 6, 9 }
+
+	= First, remove (2-3-4), that's one tri in the bag. new polygon is : 0, 1, 2, 4, 5, 6, 7, 8, 9.
+	= Then check adjacent vertices:
+		= 2 was reflex.
+			= we have to check: it still is reflex, nothing to do.
+		= 4 was an ear.
+			= we have to check, is it still an ear? yes. good. ear list now: {4, 6, 9}.
+
+	= Then remove the next ear: (2-4-5). That's another tri. new polygon: 0, 1, 2, 5, 6, 7, 8, 9.
+	= 2 was reflex, and still is, nothing to do after the check.
+	= 5 was reflex, but now it's convex. so we need to check: is it an ear? yes.
+		=> remove it from list of reflex vertices, add it to ears.
+
+	= next ear (2-5-6) is removed. That's another tri. new polygon: 0, 1, 2, 6, 7, 8, 9.
+	= 2 was reflex, but now it's convex.
+		= we need to check if it's an ear, but it is not.
+		= remove 2 from convex list and add it to reflex, but otherwise nothing to do.
+	= 6 was an ear.
+		= check: it's still an ear.
+
+	= next ear (2-6-7) is removed. That's another tri. new polygon: 0, 1, 2, 7, 8, 9
+		= 2 was convex, and still is. 
+			= but it's an ear now! add it to the end of the ear list. ear list now: { 9, 2 }
+		= 7 was reflex, and it still is.
+		
+	= next ear (8-9-0) is removed.
+		= 8 was reflex, but now convex.
+			= it's an ear. => add it to ear list.
+		= 0 was convex, and it still is
+			= but it's now an ear => add it to the ear list. ear list now: 2, 8, 0
+
+	... and there you have it.
