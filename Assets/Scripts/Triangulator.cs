@@ -62,6 +62,77 @@ public static class Triangulator
 		public bool wasRemoved;
 	}
 
+	public static List<Vector3> RemoveHolesFromPolygon(List<Vector3> outerVerticesCW, List<Vector3> innerVerticesCCW)
+	{
+		var verts = new List<Vector3>(capacity: outerVerticesCW.Count + 1 + innerVerticesCCW.Count);
+
+		var foundOuterIndex = -1;
+		var foundInnerIndex = -1;
+		var foundSolution = false;
+
+		for (int innerVertIndex = 0; !foundSolution && innerVertIndex < innerVerticesCCW.Count - 1; ++innerVertIndex)
+		{
+			var innerVertA = innerVertIndex;
+			var innerVertB = innerVertIndex + 1;
+			var foundIntersectingPoint = false;
+
+			for (int outerVertIndex = 0; !foundIntersectingPoint && outerVertIndex < outerVerticesCW.Count; ++outerVertIndex)
+			{
+				// Check if any point of the outer ring is in the outerVert, innerVertA, innerVertB triangle.
+
+				for (int outerPoint = 0; !foundIntersectingPoint && outerPoint < outerVerticesCW.Count; ++outerPoint)
+				{
+					if (outerPoint != outerVertIndex)
+					{
+						foundIntersectingPoint = MeshUtilities
+							.IsPointInTriangle(outerVerticesCW[outerPoint],
+											   outerVerticesCW[outerVertIndex], innerVerticesCCW[innerVertA], innerVerticesCCW[innerVertB], true);
+					}
+				}
+
+				// Check if any point of the inner ring is in the outerVert, innertVertA, innerVertB triangle.
+
+				for (int innerPoint = 0; !foundIntersectingPoint && innerPoint < innerVerticesCCW.Count; ++innerPoint)
+				{
+					if (innerPoint != innerVertA && innerPoint != innerVertB)
+					{
+						foundIntersectingPoint = MeshUtilities
+							.IsPointInTriangle(innerVerticesCCW[innerPoint],
+											   outerVerticesCW[outerVertIndex], innerVerticesCCW[innerVertA], innerVerticesCCW[innerVertB], true);
+					}
+				}
+
+				if (!foundIntersectingPoint)
+				{
+					foundOuterIndex = outerVertIndex;
+					foundInnerIndex = innerVertIndex;
+					foundSolution = true;
+				}
+			}
+		}
+
+		if (foundSolution)
+		{
+			for (int i = 0; i < outerVerticesCW.Count; ++i)
+			{
+				verts.Add(outerVerticesCW[i]);
+
+				if (i == foundOuterIndex)
+				{
+					for (int j = 0; j <= innerVerticesCCW.Count; ++j)
+					{
+						var nextInnerIndexToCopy = (foundInnerIndex + j) % innerVerticesCCW.Count;
+						verts.Add(innerVerticesCCW[nextInnerIndexToCopy]);
+					}
+
+					verts.Add(outerVerticesCW[i]);
+				}
+			}
+		}
+
+		return verts;
+	}
+
 	public static List<Vector3> TriangulatePolygon(List<Vector3> vertices, Vector3 polygonNormal)
 	{
 		var tris = new List<Vector3>();

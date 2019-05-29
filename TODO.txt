@@ -152,6 +152,18 @@ o ok so step 0 for this:
 				- previous => next = curr.next.
 			- identify next:
 				- next=>previous = previous
-
 		- check previous vertex.
 		- check next vertex.
+
+- ok, holes, how to?
+	- have one list of CW: outer
+	- have one list of CCW: inner
+	- find "mutually visible" vertex?
+		- pick to adjacent vertices on the hole.
+			- pick a vertex on the outer ring.
+			- check if the triangle formed by these three contains any
+			  point of the inner, or any point of the outer.
+			- if it does, then pick next outer vertex, until you've seen
+			  all, at which point pixk next two adjacent vertices on the
+			  inner ring.
+			- if it doesn't, then we found mutually visible vertices.
