@@ -140,6 +140,18 @@ o ok so step 0 for this:
 	o is a point within a triangle? let's do this.
 
 - then, ear clipper algorithm
-	- get ordered list of points
+	o get ordered list of points
 	(- for holes, get: 1) ordered list of external, 2) counter-ordered list of holes)
-	- identify ears
+	o identify ears
+
+- then:
+	- do we have more than 3 vertices left?
+		- if so, remove an ear. this is one tri in the bag.
+		- recalculate PolyVerts.
+			- identify previous:
+				- previous => next = curr.next.
+			- identify next:
+				- next=>previous = previous
+
+		- check previous vertex.
+		- check next vertex.

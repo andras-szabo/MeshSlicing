@@ -77,7 +77,7 @@ public class PolyTester : MonoBehaviour
 		Triangulator.SetupPolyVerts(_poly, _polyVerts, polygonNormal);
 		var earCount = Triangulator.TryFindEarindices(_poly, _polyVerts, _earIndices);
 
-		Debug.LogFormat("Ear count: {0}", earCount);
+		//Debug.LogFormat("Ear count: {0}", earCount);
 
 		_tris = Triangulator.TriangulatePolygon(_poly, polygonNormal);
 	}
