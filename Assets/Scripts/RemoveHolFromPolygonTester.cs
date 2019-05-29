@@ -3,8 +3,11 @@ using UnityEngine;
 
 public class RemoveHolFromPolygonTester : MonoBehaviour
 {
+	public bool showTris;
+
 	private List<Vector3> _poly = new List<Vector3>();
 	private List<Vector3> _hole = new List<Vector3>();
+	private List<Vector3> _full;
 	private List<Vector3> _tris;
 	private bool _isDone;
 
@@ -36,9 +39,14 @@ public class RemoveHolFromPolygonTester : MonoBehaviour
 			if (_poly.Count >= 3 && _hole.Count >= 3)
 			{
 				_isDone = true;
-				var fullPoly = Triangulator.RemoveHoles(_poly, _hole);
-				_tris = Triangulator.TriangulatePolygon(fullPoly, new Vector3(0f, 0f, -1f));
+				_full = Triangulator.RemoveHoles(_poly, _hole);
+				_tris = Triangulator.TriangulatePolygon(_full, new Vector3(0f, 0f, -1f));
 			}
+		}
+
+		if (Input.GetKeyDown(KeyCode.T))
+		{
+			showTris = !showTris;
 		}
 
 		if (Input.GetKeyDown(KeyCode.C) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
@@ -76,11 +84,24 @@ public class RemoveHolFromPolygonTester : MonoBehaviour
 	private void DrawPolygon()
 	{
 		Gizmos.color = Color.green;
-		for (int i = 0; i < _tris.Count - 2; i += 3)
+
+		if (showTris)
 		{
-			Gizmos.DrawLine(_tris[i], _tris[i + 1]);
-			Gizmos.DrawLine(_tris[i], _tris[i + 2]);
-			Gizmos.DrawLine(_tris[i + 1], _tris[i + 2]);
+			for (int i = 0; i < _tris.Count - 2; i += 3)
+			{
+				Gizmos.DrawLine(_tris[i], _tris[i + 1]);
+				Gizmos.DrawLine(_tris[i], _tris[i + 2]);
+				Gizmos.DrawLine(_tris[i + 1], _tris[i + 2]);
+			}
+		}
+		else
+		{
+			Gizmos.color = Color.cyan;
+			for (int i = 0; i < _full.Count; ++i)
+			{
+				var next = (i + 1) % _full.Count;
+				Gizmos.DrawLine(_full[i], _full[next]);
+			}
 		}
 	}
 

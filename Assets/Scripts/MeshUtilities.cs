@@ -41,9 +41,15 @@ public static class MeshUtilities
 
 	public static bool IsPointInTriangle(Vector3 point, 
 										 Vector3 a, Vector3 b, Vector3 c,
-										 bool assumePointIsInSamePlane)
+										 bool assumePointIsInSamePlane,
+										 bool rejectIdenticalPoints)
 	{
 		if (!assumePointIsInSamePlane && !IsPointInPlane(point, a, b, c))
+		{
+			return false;
+		}
+
+		if (rejectIdenticalPoints && point == b)
 		{
 			return false;
 		}

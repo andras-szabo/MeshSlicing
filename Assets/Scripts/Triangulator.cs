@@ -43,8 +43,19 @@ public static class Triangulator
 
 		public void RemoveIndex(int indexToRemove)
 		{
-			_indicesSet.RemoveWhere(i => i == indexToRemove);
+			_indicesSet.Remove(indexToRemove);
 			_indicesSet.CopyTo(_indices, 0);
+		}
+
+		public void Print(string prefix)
+		{
+			var sb = new System.Text.StringBuilder();
+			sb.Append(prefix);
+			for (int i = 0; i < _indicesSet.Count; ++i)
+			{
+				sb.AppendFormat(" {0};", _indices[i]);
+			}
+			Debug.LogWarning(sb.ToString());
 		}
 
 		private int[] _indices;
@@ -90,22 +101,19 @@ public static class Triangulator
 
 		if (solutionFound)
 		{
-			Debug.LogWarningFormat("Solution: outer: {0} -> inner {1}", foundOuterIndex, foundInnerIndex);
 			for (int i = 0; i < outerVerticesCW.Count; ++i)
 			{
-				Debug.LogWarningFormat("Copying outer: {0}", i);
 				verts.Add(outerVerticesCW[i]);
 
 				if (i == foundOuterIndex)
 				{
-					for (int j = 0; j <= innerVerticesCCW.Count; ++j)
+					for (int j = 0; j < innerVerticesCCW.Count; ++j)
 					{
 						var nextInnerIndexToCopy = (foundInnerIndex + j) % innerVerticesCCW.Count;
-						Debug.LogWarning(nextInnerIndexToCopy);
 						verts.Add(innerVerticesCCW[nextInnerIndexToCopy]);
 					}
 
-					Debug.LogWarningFormat("And again: {0}", i);
+					verts.Add(innerVerticesCCW[foundInnerIndex]);
 					verts.Add(outerVerticesCW[i]);
 				}
 			}
@@ -184,6 +192,7 @@ public static class Triangulator
 			tris.Add(vertices[next.currIndex]);
 
 			earIndices.RemoveIndex(earTipPolyVertIndex);
+			
 			earTip.wasRemoved = true;
 
 			prev.nextIndex = earTip.nextIndex;
@@ -317,7 +326,7 @@ public static class Triangulator
 		{
 			if (!p.wasRemoved && !p.isConvex && p.currIndex != prev && p.currIndex != curr && p.currIndex != next)
 			{
-				if (MeshUtilities.IsPointInTriangle(vertices[p.currIndex], prevVert, currVert, nextVert, true))
+				if (MeshUtilities.IsPointInTriangle(vertices[p.currIndex], prevVert, currVert, nextVert, true, true))
 				{
 					isEar = false;
 					break;

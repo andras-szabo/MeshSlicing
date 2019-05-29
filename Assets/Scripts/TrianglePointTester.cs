@@ -35,7 +35,7 @@ public class TrianglePointTester : MonoBehaviour
 		{
 			_testPoint = GetMousePoint();
 			_isTestPointSetup = true;
-			_isPointInside = MeshUtilities.IsPointInTriangle(_testPoint, _testTriangle[0], _testTriangle[1], _testTriangle[2], true);
+			_isPointInside = MeshUtilities.IsPointInTriangle(_testPoint, _testTriangle[0], _testTriangle[1], _testTriangle[2], true, true);
 		}
 	}
 

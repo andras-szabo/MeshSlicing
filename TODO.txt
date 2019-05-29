@@ -167,3 +167,7 @@ o ok so step 0 for this:
 			  all, at which point pixk next two adjacent vertices on the
 			  inner ring.
 			- if it doesn't, then we found mutually visible vertices.
+			
+	= so actually this above method is not 100% correct. there can be that a
+	  "visibility triangle" doesn't contain any other points, but it's still wrong
+	  because its edges intersect other edges. So we need to do better than this.
