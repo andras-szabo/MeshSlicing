@@ -62,59 +62,38 @@ public static class Triangulator
 		public bool wasRemoved;
 	}
 
-	public static List<Vector3> RemoveHolesFromPolygon(List<Vector3> outerVerticesCW, List<Vector3> innerVerticesCCW)
+	public static List<Vector3> RemoveHoles(List<Vector3> outerVerticesCW, List<Vector3> innerVerticesCCW)
 	{
 		var verts = new List<Vector3>(capacity: outerVerticesCW.Count + 1 + innerVerticesCCW.Count);
 
+		var solutionFound = false;
 		var foundOuterIndex = -1;
 		var foundInnerIndex = -1;
-		var foundSolution = false;
+		var outerVertexCount = outerVerticesCW.Count;
+		var innerVertexCount = innerVerticesCCW.Count;
 
-		for (int innerVertIndex = 0; !foundSolution && innerVertIndex < innerVerticesCCW.Count - 1; ++innerVertIndex)
+		for (int outerIndex = 0; !solutionFound && outerIndex < outerVertexCount; ++outerIndex)
 		{
-			var innerVertA = innerVertIndex;
-			var innerVertB = innerVertIndex + 1;
-			var foundIntersectingPoint = false;
+			var rayStart = outerVerticesCW[outerIndex];
 
-			for (int outerVertIndex = 0; !foundIntersectingPoint && outerVertIndex < outerVerticesCW.Count; ++outerVertIndex)
+			for (int innerIndex = 0; !solutionFound && innerIndex < innerVertexCount; ++innerIndex)
 			{
-				// Check if any point of the outer ring is in the outerVert, innerVertA, innerVertB triangle.
-
-				for (int outerPoint = 0; !foundIntersectingPoint && outerPoint < outerVerticesCW.Count; ++outerPoint)
+				if (!DoesIntersect(rayStart, innerVerticesCCW[innerIndex], innerVerticesCCW) &&
+					!DoesIntersect(rayStart, innerVerticesCCW[innerIndex], outerVerticesCW))
 				{
-					if (outerPoint != outerVertIndex)
-					{
-						foundIntersectingPoint = MeshUtilities
-							.IsPointInTriangle(outerVerticesCW[outerPoint],
-											   outerVerticesCW[outerVertIndex], innerVerticesCCW[innerVertA], innerVerticesCCW[innerVertB], true);
-					}
-				}
-
-				// Check if any point of the inner ring is in the outerVert, innertVertA, innerVertB triangle.
-
-				for (int innerPoint = 0; !foundIntersectingPoint && innerPoint < innerVerticesCCW.Count; ++innerPoint)
-				{
-					if (innerPoint != innerVertA && innerPoint != innerVertB)
-					{
-						foundIntersectingPoint = MeshUtilities
-							.IsPointInTriangle(innerVerticesCCW[innerPoint],
-											   outerVerticesCW[outerVertIndex], innerVerticesCCW[innerVertA], innerVerticesCCW[innerVertB], true);
-					}
-				}
-
-				if (!foundIntersectingPoint)
-				{
-					foundOuterIndex = outerVertIndex;
-					foundInnerIndex = innerVertIndex;
-					foundSolution = true;
+					solutionFound = true;
+					foundOuterIndex = outerIndex;
+					foundInnerIndex = innerIndex;
 				}
 			}
 		}
 
-		if (foundSolution)
+		if (solutionFound)
 		{
+			Debug.LogWarningFormat("Solution: outer: {0} -> inner {1}", foundOuterIndex, foundInnerIndex);
 			for (int i = 0; i < outerVerticesCW.Count; ++i)
 			{
+				Debug.LogWarningFormat("Copying outer: {0}", i);
 				verts.Add(outerVerticesCW[i]);
 
 				if (i == foundOuterIndex)
@@ -122,15 +101,54 @@ public static class Triangulator
 					for (int j = 0; j <= innerVerticesCCW.Count; ++j)
 					{
 						var nextInnerIndexToCopy = (foundInnerIndex + j) % innerVerticesCCW.Count;
+						Debug.LogWarning(nextInnerIndexToCopy);
 						verts.Add(innerVerticesCCW[nextInnerIndexToCopy]);
 					}
 
+					Debug.LogWarningFormat("And again: {0}", i);
 					verts.Add(outerVerticesCW[i]);
 				}
 			}
 		}
+		else
+		{
+			Debug.LogWarning("No solution found");
+		}
 
 		return verts;
+	}
+
+	// Does the line segment from rayStart to rayEnd intersect any of the line segments
+	// in polygonSegments? (where polygonSegments is expected to be a p0->p1->p2->p3->...->p0 chain)
+	public static bool DoesIntersect(Vector3 rayStart, Vector3 rayEnd, List<Vector3> polygonSegments)
+	{
+		// Parberry-Dunn, pp722-723
+		var p1 = rayStart;
+		var d1 = rayEnd - rayStart;
+		var polyVertexCount = polygonSegments.Count;
+
+		for (int i = 0; i < polyVertexCount; ++i)
+		{
+			var nextIndex = (i + 1) % polyVertexCount;
+			var p2 = polygonSegments[i];
+			var d2 = polygonSegments[nextIndex] - p2;
+			var d1xd2 = Vector3.Cross(d1, d2);
+			var denom = Vector3.Dot(d1xd2, d1xd2);
+			if (!Mathf.Approximately(denom, 0f))
+			{
+				var t1 = Vector3.Dot(Vector3.Cross(p2 - p1, d2), d1xd2) / denom;
+				if (0f < t1 && t1 < 1f)
+				{
+					var t2 = Vector3.Dot(Vector3.Cross(p2 - p1, d1), d1xd2) / denom;
+					if (0f < t2 && t2 < 1f)
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	public static List<Vector3> TriangulatePolygon(List<Vector3> vertices, Vector3 polygonNormal)

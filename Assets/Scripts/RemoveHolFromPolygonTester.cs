@@ -36,8 +36,21 @@ public class RemoveHolFromPolygonTester : MonoBehaviour
 			if (_poly.Count >= 3 && _hole.Count >= 3)
 			{
 				_isDone = true;
-				var fullPoly = Triangulator.RemoveHolesFromPolygon(_poly, _hole);
+				var fullPoly = Triangulator.RemoveHoles(_poly, _hole);
 				_tris = Triangulator.TriangulatePolygon(fullPoly, new Vector3(0f, 0f, -1f));
+			}
+		}
+
+		if (Input.GetKeyDown(KeyCode.C) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+		{
+			_isDone = false;
+
+			_poly.Clear();
+			_hole.Clear();
+
+			if (_tris != null)
+			{
+				_tris.Clear();
 			}
 		}
 	}
