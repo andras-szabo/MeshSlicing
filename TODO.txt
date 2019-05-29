@@ -171,3 +171,11 @@ o ok so step 0 for this:
 	= so actually this above method is not 100% correct. there can be that a
 	  "visibility triangle" doesn't contain any other points, but it's still wrong
 	  because its edges intersect other edges. So we need to do better than this.
+
+
+: so really, todo:
+
+== ok so _one_ hole is now dealt with; this should be enough for some basic
+   donut cutting. so the next step is to creat cut surfaces:
+	- put cut vertices into CW order
+	- put holes into CCW order
