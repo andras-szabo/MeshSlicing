@@ -5,11 +5,16 @@ using UnityEngine;
 public class VertexChainTester : MonoBehaviour
 {
 	private List<MeshUtilities.Edge> _edges = new List<MeshUtilities.Edge>();
+	private List<MeshUtilities.Edge> _holeEdges = new List<MeshUtilities.Edge>();
+
 	private List<Vector3> _poly = new List<Vector3>();
 
 	private bool _isDone;
 	private Vector3 _currentEdgeStart;
 	private Vector3 _currentEdgeEnd;
+
+	private Vector3 _currHoleEdgeStart;
+	private Vector3 _currHoleEdgeEnd;
 
 	private static Vector3 GetMousePoint()
 	{
@@ -37,6 +42,24 @@ public class VertexChainTester : MonoBehaviour
 		}
 	}
 
+	private void StartNewHoleEdge(Vector3 mousePoint)
+	{
+		if (_holeEdges.Count == 0)
+		{
+			_currHoleEdgeStart = mousePoint;
+		}
+		else
+		{
+			_currHoleEdgeStart = _holeEdges[_holeEdges.Count - 1].to;
+			_currHoleEdgeEnd = mousePoint;
+		}
+	}
+
+	private void EndNewHoleEdge()
+	{
+		_holeEdges.Add(new MeshUtilities.Edge(_currHoleEdgeStart, _currHoleEdgeEnd));
+	}
+
 	private void EndNewEdge()
 	{
 		_edges.Add(new MeshUtilities.Edge(_currentEdgeStart, _currentEdgeEnd));
@@ -61,6 +84,10 @@ public class VertexChainTester : MonoBehaviour
 			EndNewEdge();
 		}
 
+		if (Input.GetMouseButtonDown(1)) { StartNewHoleEdge(GetMousePoint()); }
+		else if (Input.GetMouseButton(1)) { _currHoleEdgeEnd = GetMousePoint(); }
+		if (Input.GetMouseButtonUp(1)) { EndNewHoleEdge(); }
+
 		if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
 		{
 			if (_edges.Count >= 2)
@@ -68,16 +95,34 @@ public class VertexChainTester : MonoBehaviour
 				_edges.Add(new MeshUtilities.Edge(GetLastEdge().to, _edges[0].from));
 				_currentEdgeStart = _currentEdgeEnd;
 
+				if (_holeEdges.Count >= 2)
+				{
+					_holeEdges.Add(new MeshUtilities.Edge(_holeEdges[_holeEdges.Count - 1].to, _holeEdges[0].from));
+					_currHoleEdgeEnd = _currHoleEdgeStart;
+				}
+
 				ShuffleEdgesAndTurnIntoPolygon();
 				_isDone = true;
 			}
+		}
+
+		if (Input.GetKeyDown(KeyCode.C) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+		{
+			_isDone = false;
+			
+			_edges.Clear();
+			_holeEdges.Clear();
+			_currentEdgeEnd = _currentEdgeStart;
+			_currHoleEdgeEnd = _currHoleEdgeStart;
 		}
 	}
 
 	private void ShuffleEdgesAndTurnIntoPolygon()
 	{
-		var shuffledIndices = new List<int>(capacity: _edges.Count);
-		for (int i = 0; i < _edges.Count; ++i) { shuffledIndices.Add(i); }
+		var totalEdgeCount = _edges.Count + _holeEdges.Count;
+		var shuffledIndices = new List<int>(capacity: totalEdgeCount);
+
+		for (int i = 0; i < totalEdgeCount; ++i) { shuffledIndices.Add(i); }
 		for (int i = 0; i < shuffledIndices.Count - 1; ++i)
 		{
 			var left = Random.Range(0, i + 1);
@@ -88,10 +133,18 @@ public class VertexChainTester : MonoBehaviour
 			shuffledIndices[right] = tmp;
 		}
 
-		var shuffledEdges = new List<MeshUtilities.Edge>(capacity: _edges.Count);
+		var shuffledEdges = new List<MeshUtilities.Edge>(capacity: totalEdgeCount);
+
 		foreach (var index in shuffledIndices)
 		{
-			shuffledEdges.Add(_edges[index]);
+			if (index < _edges.Count)
+			{
+				shuffledEdges.Add(_edges[index]);
+			}
+			else
+			{
+				shuffledEdges.Add(_holeEdges[index - _edges.Count]);
+			}
 		}
 
 		_poly = MeshUtilities.ConnectEdges(shuffledEdges);
@@ -130,12 +183,24 @@ public class VertexChainTester : MonoBehaviour
 			Gizmos.color = Color.red;
 			Gizmos.DrawLine(_currentEdgeStart, _currentEdgeEnd);
 		}
+
+		if (_currHoleEdgeEnd != _currHoleEdgeStart)
+		{
+			Gizmos.color = Color.yellow;
+			Gizmos.DrawLine(_currHoleEdgeStart, _currHoleEdgeEnd);
+		}
 	}
 
 	private void DrawSetEdges()
 	{
 		Gizmos.color = Color.green;
 		foreach (var edge in _edges)
+		{
+			Gizmos.DrawLine(edge.from, edge.to);
+		}
+
+		Gizmos.color = Color.cyan;
+		foreach (var edge in _holeEdges)
 		{
 			Gizmos.DrawLine(edge.from, edge.to);
 		}

@@ -203,24 +203,13 @@ o ok so step 0 for this:
 		- in the end, we're expected to have as many chains as expected.
 
 	- let's test.
-		
 
----- edge connection
-- first: 0
-- last: 0
+= test without holes => OK.
+= test _with_ holes:
+	= connect polys.
+	= at some point you won't be able to establish any new connections,
+	  but there will be leftovers.
 
-- add new (1) to end:
-	- _next[0] = 1
-	- last connected: 1
-
-- add new (2) to begin:
-	- next[2] = 0
-	- first connected: 2
-
-/// so now, reconstruct:
-- start with first connected.
-- next: 0
-- => next: 1
-- => next - let's make it -1: this is the end.
-	
+	= so create a new connector for those, recursively, until there are
+	  no unconnected ones left.
 
