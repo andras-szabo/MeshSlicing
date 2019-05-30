@@ -179,3 +179,48 @@ o ok so step 0 for this:
    donut cutting. so the next step is to creat cut surfaces:
 	- put cut vertices into CW order
 	- put holes into CCW order
+
+= ok, but how?
+	= from the cut operations, I'll have a bunch of edges,
+	  each one directed in the same orientation as the cut triangle
+	- if the triangle was CW, then these two edges will be CW as well
+	- we need to connect these edges via points that are the same
+	- ok, how?
+
+		- add connectable edge 1 to set of already connected ones.
+		- does connected edge start 2 connect to end 1 ? if so, connect.
+		- does connected edge end 2 connecto to start 1? if so, connect.
+		- if edge 2 doesn't connect, try to connect it to any of the
+	   	  leftovers.
+		- repeat until we have edges to add.
+
+		- when we're done, we expect to have a bunch of connected 
+		  sets, some only with 1 vertex.
+
+		- try to connect them, continue until you can connect at least
+		  one.
+
+		- in the end, we're expected to have as many chains as expected.
+
+	- let's test.
+		
+
+---- edge connection
+- first: 0
+- last: 0
+
+- add new (1) to end:
+	- _next[0] = 1
+	- last connected: 1
+
+- add new (2) to begin:
+	- next[2] = 0
+	- first connected: 2
+
+/// so now, reconstruct:
+- start with first connected.
+- next: 0
+- => next: 1
+- => next - let's make it -1: this is the end.
+	
+

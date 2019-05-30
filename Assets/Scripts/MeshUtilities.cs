@@ -11,6 +11,103 @@ public static class MeshUtilities
 		BCCA
 	}
 
+	public struct Edge
+	{
+		public Edge(Vector3 f, Vector3 t)
+		{
+			from = f;
+			to = t;
+		}
+
+		public Vector3 from;
+		public Vector3 to;
+	}
+
+	public class ConnectedEdges
+	{
+		public ConnectedEdges(List<Edge> allEdges, int startEdgeIndex)
+		{
+			_allEdges = allEdges;
+			_connectedEdgeSet = new HashSet<int>();
+			_nextEdge = new List<int>(capacity: allEdges.Count);
+
+			//TODO this could be optimized away if we kept +1 indices, and treat
+			//0 as "invalid"
+			for (int i = 0; i < _allEdges.Count; ++i) { _nextEdge.Add(-1); }
+
+			_connectedEdgeSet.Add(startEdgeIndex);
+			_firstConnectedEdgeIndex = startEdgeIndex;
+			_lastConnectedEdgeIndex = startEdgeIndex;
+
+			_start = _allEdges[startEdgeIndex].from;
+			_end = _allEdges[startEdgeIndex].to;
+		}
+
+		public bool Contains(int index)
+		{
+			return _connectedEdgeSet.Contains(index);
+		}
+
+		public bool TryConnect(int index)
+		{
+			if (Approx(_allEdges[index].from, _end))
+			{
+				_nextEdge[_lastConnectedEdgeIndex] = index;
+				_connectedEdgeSet.Add(index);
+				_end = _allEdges[index].to;
+				_lastConnectedEdgeIndex = index;
+				return true;
+			}
+
+			if (Approx(_allEdges[index].to, _start))
+			{
+				_nextEdge[index] = _firstConnectedEdgeIndex;
+				_connectedEdgeSet.Add(index);
+				_start = _allEdges[index].from;
+				_firstConnectedEdgeIndex = index;
+				return true;
+			}
+
+			return false;
+		}
+
+		public List<Vector3> GetVerts()
+		{
+			var verts = new List<Vector3>(capacity: _connectedEdgeSet.Count);
+
+			var currentEdgeIndex = _firstConnectedEdgeIndex;
+
+			verts.Add(_allEdges[_firstConnectedEdgeIndex].from);
+
+			do
+			{
+				var edge = _allEdges[currentEdgeIndex];
+				verts.Add(edge.to);
+				currentEdgeIndex = _nextEdge[currentEdgeIndex];
+			} while (currentEdgeIndex != -1);
+
+			return verts;
+		}
+
+		public bool Approx(Vector3 a, Vector3 b, float tolerance = 0.1f)
+		{
+			var diff = a - b;
+			return Mathf.Abs(diff.x) < tolerance &&
+				   Mathf.Abs(diff.y) < tolerance &&
+				   Mathf.Abs(diff.z) < tolerance;
+		}
+
+		private HashSet<int> _connectedEdgeSet;
+		private List<int> _nextEdge;
+		private List<Edge> _allEdges;
+
+		private int _firstConnectedEdgeIndex;
+		private int _lastConnectedEdgeIndex;
+
+		private Vector3 _start;
+		private Vector3 _end;
+	}
+
 	public struct TriIntersections
 	{
 		public Vector3 A;
@@ -39,7 +136,32 @@ public static class MeshUtilities
 
 	public static Vector3 staticCutNormal;
 
-	public static bool IsPointInTriangle(Vector3 point, 
+	public static List<Vector3> ConnectEdges(List<Edge> edges)
+	{
+		var connected = new ConnectedEdges(edges, 0);
+
+		var couldConnectAnything = true;
+
+		while (couldConnectAnything)
+		{
+			couldConnectAnything = false;
+
+			for (int edgeIndex = 1; edgeIndex < edges.Count; ++edgeIndex)
+			{
+				if (!connected.Contains(edgeIndex))
+				{
+					if (connected.TryConnect(edgeIndex))
+					{
+						couldConnectAnything = true;
+					}
+				}
+			}
+		}
+
+		return connected.GetVerts();
+	}
+
+	public static bool IsPointInTriangle(Vector3 point,
 										 Vector3 a, Vector3 b, Vector3 c,
 										 bool assumePointIsInSamePlane,
 										 bool rejectIdenticalPoints)
@@ -118,7 +240,7 @@ public static class MeshUtilities
 
 		for (int triStartIndex = 0; triStartIndex < meshTriangles.Length; triStartIndex += 3)
 		{
-			var intersection = CalculateIntersections(meshVertices, meshTriangles, meshNormals, triStartIndex, 
+			var intersection = CalculateIntersections(meshVertices, meshTriangles, meshNormals, triStartIndex,
 													  cutStartPos, cutNormal, log);
 			if (intersection.type == CutType.None)
 			{
@@ -135,7 +257,7 @@ public static class MeshUtilities
 			{
 				atLeastOneTriangleWasCut = true;
 				CutTriangleAndCopyVertsAndNormals(mesh, intersection, cutStartPos, cutNormal,
-												  vertsAboveCut, normalsAboveCut, 
+												  vertsAboveCut, normalsAboveCut,
 												  vertsBelowCut, normalsBelowCut, log);
 			}
 		}
@@ -152,7 +274,7 @@ public static class MeshUtilities
 		return atLeastOneTriangleWasCut;
 	}
 
-	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material, 
+	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material,
 									  Vector3 cutNormal, bool aboveCut, bool makeDrop, bool log)
 	{
 		var go = CreateMeshGameObject(mesh, goName, material);
@@ -182,7 +304,7 @@ public static class MeshUtilities
 		var mesh = new Mesh();
 		mesh.vertices = verts.ToArray();
 		mesh.normals = norms.ToArray();
-		
+
 		var triangles = new int[verts.Count];
 		for (int i = 0; i < triangles.Length; ++i)
 		{
@@ -195,7 +317,7 @@ public static class MeshUtilities
 		return mesh;
 	}
 
-	private static void CopyVertsAndNormals(Vector3[] meshVertices, int[] meshTriangles, Vector3[] meshNormals, 
+	private static void CopyVertsAndNormals(Vector3[] meshVertices, int[] meshTriangles, Vector3[] meshNormals,
 											int triStartIndex, List<Vector3> vertsDst, List<Vector3> normsDst)
 	{
 		for (int i = 0; i < 3; ++i)
@@ -262,94 +384,94 @@ public static class MeshUtilities
 		switch (cut.type)
 		{
 			case CutType.ABCA:
-			{
-				LogIf(log, "ABCA");
-				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.A - cutStartPos) > 0f;
+				{
+					LogIf(log, "ABCA");
+					var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.A - cutStartPos) > 0f;
 
-				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
-				List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
+					List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
+					List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
 
-				List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
-				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
+					List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
+					List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
 
-				smallPieceVerts.Add(cut.A); smallPieceVerts.Add(cut.Iab); smallPieceVerts.Add(cut.Ica);
+					smallPieceVerts.Add(cut.A); smallPieceVerts.Add(cut.Iab); smallPieceVerts.Add(cut.Ica);
 
-				smallPieceNorms.Add(cut.normalA);
-				smallPieceNorms.Add(cut.normalIAB);
-				smallPieceNorms.Add(cut.normalICA);
+					smallPieceNorms.Add(cut.normalA);
+					smallPieceNorms.Add(cut.normalIAB);
+					smallPieceNorms.Add(cut.normalICA);
 
-				bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.Iab);
-				bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.B);
-				
-				bigPieceNorms.Add(cut.normalC);
-				bigPieceNorms.Add(cut.normalICA);
-				bigPieceNorms.Add(cut.normalIAB);
+					bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.Iab);
+					bigPieceVerts.Add(cut.C); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.B);
 
-				bigPieceNorms.Add(cut.normalC);
-				bigPieceNorms.Add(cut.normalIAB);
-				bigPieceNorms.Add(cut.normalB);
+					bigPieceNorms.Add(cut.normalC);
+					bigPieceNorms.Add(cut.normalICA);
+					bigPieceNorms.Add(cut.normalIAB);
 
-				break;
-			}
+					bigPieceNorms.Add(cut.normalC);
+					bigPieceNorms.Add(cut.normalIAB);
+					bigPieceNorms.Add(cut.normalB);
+
+					break;
+				}
 
 			case CutType.ABBC:
-			{
-				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.B - cutStartPos) > 0f;
+				{
+					var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.B - cutStartPos) > 0f;
 
-				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
-				List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
+					List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
+					List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
 
-				List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
-				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
+					List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
+					List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
 
-				smallPieceVerts.Add(cut.B); smallPieceVerts.Add(cut.Ibc); smallPieceVerts.Add(cut.Iab);
+					smallPieceVerts.Add(cut.B); smallPieceVerts.Add(cut.Ibc); smallPieceVerts.Add(cut.Iab);
 
-				smallPieceNorms.Add(cut.normalB);
-				smallPieceNorms.Add(cut.normalIBC);
-				smallPieceNorms.Add(cut.normalIAB);
+					smallPieceNorms.Add(cut.normalB);
+					smallPieceNorms.Add(cut.normalIBC);
+					smallPieceNorms.Add(cut.normalIAB);
 
-				bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.Ibc);
-				bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.C);
+					bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Iab); bigPieceVerts.Add(cut.Ibc);
+					bigPieceVerts.Add(cut.A); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.C);
 
-				bigPieceNorms.Add(cut.normalA);
-				bigPieceNorms.Add(cut.normalIAB);
-				bigPieceNorms.Add(cut.normalIBC);
+					bigPieceNorms.Add(cut.normalA);
+					bigPieceNorms.Add(cut.normalIAB);
+					bigPieceNorms.Add(cut.normalIBC);
 
-				bigPieceNorms.Add(cut.normalA);
-				bigPieceNorms.Add(cut.normalIBC);
-				bigPieceNorms.Add(cut.normalC);
+					bigPieceNorms.Add(cut.normalA);
+					bigPieceNorms.Add(cut.normalIBC);
+					bigPieceNorms.Add(cut.normalC);
 
-				break;
-			}
+					break;
+				}
 
 			case CutType.BCCA:
-			{
-				var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.C - cutStartPos) > 0f;
+				{
+					var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.C - cutStartPos) > 0f;
 
-				List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
-				List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
+					List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
+					List<Vector3> smallPieceNorms = isSmallPieceAboveCut ? normsAbove : normsBelow;
 
-				List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
-				List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
+					List<Vector3> bigPieceVerts = isSmallPieceAboveCut ? vertsBelow : vertsAbove;
+					List<Vector3> bigPieceNorms = isSmallPieceAboveCut ? normsBelow : normsAbove;
 
-				smallPieceVerts.Add(cut.C); smallPieceVerts.Add(cut.Ica); smallPieceVerts.Add(cut.Ibc);
-				smallPieceNorms.Add(cut.normalC);
-				smallPieceNorms.Add(cut.normalICA);
-				smallPieceNorms.Add(cut.normalIBC);
+					smallPieceVerts.Add(cut.C); smallPieceVerts.Add(cut.Ica); smallPieceVerts.Add(cut.Ibc);
+					smallPieceNorms.Add(cut.normalC);
+					smallPieceNorms.Add(cut.normalICA);
+					smallPieceNorms.Add(cut.normalIBC);
 
-				bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.Ica);
-				bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.A);
+					bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ibc); bigPieceVerts.Add(cut.Ica);
+					bigPieceVerts.Add(cut.B); bigPieceVerts.Add(cut.Ica); bigPieceVerts.Add(cut.A);
 
-				bigPieceNorms.Add(cut.normalB);
-				bigPieceNorms.Add(cut.normalIBC);
-				bigPieceNorms.Add(cut.normalICA);
+					bigPieceNorms.Add(cut.normalB);
+					bigPieceNorms.Add(cut.normalIBC);
+					bigPieceNorms.Add(cut.normalICA);
 
-				bigPieceNorms.Add(cut.normalB);
-				bigPieceNorms.Add(cut.normalICA);
-				bigPieceNorms.Add(cut.normalA);
+					bigPieceNorms.Add(cut.normalB);
+					bigPieceNorms.Add(cut.normalICA);
+					bigPieceNorms.Add(cut.normalA);
 
-				break;
-			}
+					break;
+				}
 
 			default:
 				break;
