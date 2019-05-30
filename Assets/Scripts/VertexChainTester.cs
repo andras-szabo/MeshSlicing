@@ -8,6 +8,7 @@ public class VertexChainTester : MonoBehaviour
 	private List<MeshUtilities.Edge> _holeEdges = new List<MeshUtilities.Edge>();
 
 	private List<Vector3> _poly = new List<Vector3>();
+	private List<Vector3> _hole = new List<Vector3>();
 
 	private bool _isDone;
 	private Vector3 _currentEdgeStart;
@@ -147,7 +148,13 @@ public class VertexChainTester : MonoBehaviour
 			}
 		}
 
-		_poly = MeshUtilities.ConnectEdges(shuffledEdges);
+		var polys = MeshUtilities.ConnectEdges(shuffledEdges);
+		_poly = polys[0];
+
+		if (polys.Count > 1)
+		{
+			_hole = polys[1];
+		}
 	}
 
 	private void OnDrawGizmos()
@@ -161,18 +168,19 @@ public class VertexChainTester : MonoBehaviour
 			}
 			else
 			{
-				DrawPoly();
+				DrawPoly(_poly);
+				DrawPoly(_hole);
 			}
 		}
 	}
 
-	private void DrawPoly()
+	private void DrawPoly(List<Vector3> poly)
 	{
 		Gizmos.color = Color.blue;
-		for (int i = 0; i < _poly.Count; ++i)
+		for (int i = 0; i < poly.Count; ++i)
 		{
-			var next = (i + 1) % _poly.Count;
-			Gizmos.DrawLine(_poly[i], _poly[next]);
+			var next = (i + 1) % poly.Count;
+			Gizmos.DrawLine(poly[i], poly[next]);
 		}
 	}
 

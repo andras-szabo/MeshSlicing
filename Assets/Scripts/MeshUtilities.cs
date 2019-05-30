@@ -23,6 +23,7 @@ public static class MeshUtilities
 		public Vector3 to;
 	}
 
+	//TODO own file
 	public class ConnectedEdges
 	{
 		public ConnectedEdges(List<Edge> allEdges, int startEdgeIndex)
@@ -34,7 +35,11 @@ public static class MeshUtilities
 			//TODO this could be optimized away if we kept +1 indices, and treat
 			//0 as "invalid"
 			for (int i = 0; i < _allEdges.Count; ++i) { _nextEdge.Add(-1); }
+			Start(startEdgeIndex);
+		}
 
+		public void Start(int startEdgeIndex)
+		{
 			_connectedEdgeSet.Add(startEdgeIndex);
 			_firstConnectedEdgeIndex = startEdgeIndex;
 			_lastConnectedEdgeIndex = startEdgeIndex;
@@ -136,29 +141,44 @@ public static class MeshUtilities
 
 	public static Vector3 staticCutNormal;
 
-	public static List<Vector3> ConnectEdges(List<Edge> edges)
+	public static List<List<Vector3>> ConnectEdges(List<Edge> edges)
 	{
+		var result = new List<List<Vector3>>();
 		var connected = new ConnectedEdges(edges, 0);
 
-		var couldConnectAnything = true;
+		var shouldConnectThings = true;
 
-		while (couldConnectAnything)
+		while (shouldConnectThings)
 		{
-			couldConnectAnything = false;
+			var couldConnectAnything = true;
+			var randomUnconnectedIndex = -1;
 
-			for (int edgeIndex = 1; edgeIndex < edges.Count; ++edgeIndex)
+			while (couldConnectAnything)
 			{
-				if (!connected.Contains(edgeIndex))
+				couldConnectAnything = false;
+				randomUnconnectedIndex = -1;
+
+				for (int edgeIndex = 1; edgeIndex < edges.Count; ++edgeIndex)
 				{
-					if (connected.TryConnect(edgeIndex))
+					if (!connected.Contains(edgeIndex))
 					{
-						couldConnectAnything = true;
+						if (connected.TryConnect(edgeIndex)) { couldConnectAnything = true; }
+						else { randomUnconnectedIndex = edgeIndex; }
 					}
 				}
 			}
+
+			result.Add(connected.GetVerts());
+			shouldConnectThings = false;
+
+			if (randomUnconnectedIndex != -1)
+			{
+				connected.Start(randomUnconnectedIndex);
+				shouldConnectThings = true;
+			}
 		}
 
-		return connected.GetVerts();
+		return result;
 	}
 
 	public static bool IsPointInTriangle(Vector3 point,
