@@ -89,8 +89,8 @@ public static class Triangulator
 
 			for (int innerIndex = 0; !solutionFound && innerIndex < innerVertexCount; ++innerIndex)
 			{
-				if (!DoesIntersect(rayStart, innerVerticesCCW[innerIndex], innerVerticesCCW) &&
-					!DoesIntersect(rayStart, innerVerticesCCW[innerIndex], outerVerticesCW))
+				if (DoesIntersect(rayStart, innerVerticesCCW[innerIndex], innerVerticesCCW) == 0 &&
+					DoesIntersect(rayStart, innerVerticesCCW[innerIndex], outerVerticesCW) == 0)
 				{
 					solutionFound = true;
 					foundOuterIndex = outerIndex;
@@ -128,12 +128,16 @@ public static class Triangulator
 
 	// Does the line segment from rayStart to rayEnd intersect any of the line segments
 	// in polygonSegments? (where polygonSegments is expected to be a p0->p1->p2->p3->...->p0 chain)
-	public static bool DoesIntersect(Vector3 rayStart, Vector3 rayEnd, List<Vector3> polygonSegments)
+	public static int DoesIntersect(Vector3 rayStart, Vector3 rayEnd, List<Vector3> polygonSegments, 
+									bool countAllIntersections = false,
+									bool treatRayAsUnbounded = false)
 	{
 		// Parberry-Dunn, pp722-723
 		var p1 = rayStart;
 		var d1 = rayEnd - rayStart;
 		var polyVertexCount = polygonSegments.Count;
+
+		var intersectionCount = 0;
 
 		for (int i = 0; i < polyVertexCount; ++i)
 		{
@@ -145,18 +149,22 @@ public static class Triangulator
 			if (!Mathf.Approximately(denom, 0f))
 			{
 				var t1 = Vector3.Dot(Vector3.Cross(p2 - p1, d2), d1xd2) / denom;
-				if (0f < t1 && t1 < 1f)
+				if (0f < t1 && (treatRayAsUnbounded || t1 < 1f))
 				{
 					var t2 = Vector3.Dot(Vector3.Cross(p2 - p1, d1), d1xd2) / denom;
 					if (0f < t2 && t2 < 1f)
 					{
-						return true;
+						intersectionCount++;
+						if (!countAllIntersections)
+						{
+							return intersectionCount;
+						}
 					}
 				}
 			}
 		}
 
-		return false;
+		return intersectionCount;
 	}
 
 	public static List<Vector3> TriangulatePolygon(List<Vector3> vertices, Vector3 polygonNormal)

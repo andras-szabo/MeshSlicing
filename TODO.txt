@@ -213,3 +213,19 @@ o ok so step 0 for this:
 	= so create a new connector for those, recursively, until there are
 	  no unconnected ones left.
 
+===> OK, we now have n polys, so this is great. question:
+	- how to identify holes? because for donut-slicing, three cases are
+	  possible:
+		- there's only one surface to cover.
+		- there is one surface with a hole
+		- there are two surfaces, which don't overlap.
+
+	- groargh. 
+		-take poly A.
+			- if any point of B is inside A, then B is a hole in A.
+			- if B is not hole, compare with A - maybe "A" is a hole.
+			- if neither, then neither.
+
+	- so for this we'll need "is point in polygon" waagh, is there no better way?
+	
+

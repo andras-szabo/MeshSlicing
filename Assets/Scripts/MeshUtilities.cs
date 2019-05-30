@@ -141,6 +141,14 @@ public static class MeshUtilities
 
 	public static Vector3 staticCutNormal;
 
+	public static bool IsBHoleInA(List<Vector3> a, List<Vector3> b)
+	{
+		var rayStart = b[0];
+		var rayEnd = b[1];
+		var intersectionCount = Triangulator.DoesIntersect(rayStart, rayEnd, a, countAllIntersections: true, treatRayAsUnbounded: true);
+		return intersectionCount % 2 == 1;
+	}
+
 	public static List<List<Vector3>> ConnectEdges(List<Edge> edges)
 	{
 		var result = new List<List<Vector3>>();
@@ -356,46 +364,6 @@ public static class MeshUtilities
 		return dot > 0f;
 	}
 
-	//TODO REMOVE
-	/*
-	public static bool SliceSingleTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material,
-												bool makePiecesDrop = true, bool log = true)
-	{
-		var cutNormal = CalculateCutNormal(cutStartPos, cutEndPos, log);
-		//LogIf(log, string.Format("Cut normal: {0}", cutNormal));
-		staticCutNormal = cutNormal;
-
-		var meshTransform = meshGO.transform;
-		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, ref cutNormal, meshTransform);
-		//LogIf(log, string.Format("Cut: {0} -> {1}; normal: {2}", cutStartPos, cutEndPos, cutNormal));
-
-		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
-		var meshVertices = mesh.vertices;
-		var meshTriangles = mesh.triangles;
-		var meshNormals = mesh.normals;
-		var intersections = CalculateIntersections(meshVertices, meshTriangles, meshNormals, 
-												   0, cutStartPos, cutNormal, log);
-
-		if (intersections.type != CutType.None)
-		{
-			var meshGOs = CreateMeshes(intersections, material, meshGO.transform);
-			foreach (var go in meshGOs)
-			{
-				var collider = go.AddComponent<MeshCollider>();
-				collider.convex = true;
-
-				var rigidbody = go.AddComponent<Rigidbody>();
-				rigidbody.useGravity = true;
-				rigidbody.isKinematic = !makePiecesDrop;
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-	*/
-
 	private static void CutTriangleAndCopyVertsAndNormals(Mesh mesh, TriIntersections cut,
 														  Vector3 cutStartPos, Vector3 cutNormal,
 														  List<Vector3> vertsAbove, List<Vector3> normsAbove,
@@ -498,65 +466,6 @@ public static class MeshUtilities
 		}
 	}
 
-	//TODO remove
-	/*
-	private static List<GameObject> CreateMeshes(TriIntersections cut, Material material, Transform originalTransform)
-	{
-		Mesh mesh1 = null;
-		Mesh mesh2 = null;
-
-		switch (cut.type)
-		{
-				case CutType.ABCA:
-				{
-					mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.A, cut.Iab, cut.Ica }, cut.normal);
-					mesh2 = CreateMultiTriangleMesh(new Vector3[]
-							{ cut.C, cut.Ica, cut.Iab,
-						cut.C, cut.Iab, cut.B }, cut.normal);
-					break;
-				}
-
-				case CutType.ABBC:
-				{
-					mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.B, cut.Ibc, cut.Iab }, cut.normal);
-					mesh2 = CreateMultiTriangleMesh(new Vector3[]
-							{ cut.A, cut.Iab, cut.Ibc,
-						cut.A, cut.Ibc, cut.C }, cut.normal);
-					break;
-				}
-
-				case CutType.BCCA:
-				{
-					mesh1 = CreateSingleTriangleMesh(new Vector3[] { cut.C, cut.Ica, cut.Ibc }, cut.normal);
-					mesh2 = CreateMultiTriangleMesh(new Vector3[]
-							{ cut.B, cut.Ibc, cut.Ica,
-						cut.B, cut.Ica, cut.A }, cut.normal);
-					break;
-				}
-
-				default:
-					break;
-		}
-
-		if (mesh1 != null && mesh2 != null)
-		{
-			var go1 = CreateMeshGameObject(mesh1, "Small bit", material);
-			var go2 = CreateMeshGameObject(mesh2, "Larger bit", material);
-
-			go1.transform.rotation = originalTransform.rotation;
-			go1.transform.localScale = originalTransform.localScale;
-
-			go2.transform.rotation = originalTransform.rotation;
-			go2.transform.localScale = originalTransform.localScale;
-
-			var result = new List<GameObject> { go1, go2 };
-			return result;
-		}
-
-		return null;
-	}
-	*/
-
 	private static TriIntersections CalculateIntersections(Vector3[] meshVertices, int[] meshTriangles, Vector3[] meshNormals,
 														   int triStartIndex,
 														   Vector3 cutStartObjectSpace,
@@ -656,9 +565,6 @@ public static class MeshUtilities
 		var toCam = (Camera.main.transform.position - cutStartWorldSpace).normalized;
 
 		return Vector3.Cross(delta, toCam);
-
-		//var rotation = Quaternion.Euler(0f, 0f, 90f);
-		//return (rotation * delta).normalized;
 	}
 
 	private static void TransformCutToObjectSpace(ref Vector3 cutStartPos, ref Vector3 cutEndPos, ref Vector3 cutNormal,

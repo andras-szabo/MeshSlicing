@@ -7,8 +7,10 @@ public class VertexChainTester : MonoBehaviour
 	private List<MeshUtilities.Edge> _edges = new List<MeshUtilities.Edge>();
 	private List<MeshUtilities.Edge> _holeEdges = new List<MeshUtilities.Edge>();
 
-	private List<Vector3> _poly = new List<Vector3>();
-	private List<Vector3> _hole = new List<Vector3>();
+	private List<Vector3> _polyA = new List<Vector3>();
+	private List<Vector3> _polyB = new List<Vector3>();
+	private bool _aIsHole = false;
+	private bool _bIsHole = false;
 
 	private bool _isDone;
 	private Vector3 _currentEdgeStart;
@@ -149,11 +151,16 @@ public class VertexChainTester : MonoBehaviour
 		}
 
 		var polys = MeshUtilities.ConnectEdges(shuffledEdges);
-		_poly = polys[0];
+
+		_polyA = polys[0];
+		_aIsHole = false;
 
 		if (polys.Count > 1)
 		{
-			_hole = polys[1];
+			_polyB = polys[1];
+
+			_aIsHole = MeshUtilities.IsBHoleInA(_polyB, _polyA);
+			_bIsHole = MeshUtilities.IsBHoleInA(_polyA, _polyB);
 		}
 	}
 
@@ -168,15 +175,16 @@ public class VertexChainTester : MonoBehaviour
 			}
 			else
 			{
-				DrawPoly(_poly);
-				DrawPoly(_hole);
+				DrawPoly(_polyA, _aIsHole);
+				DrawPoly(_polyB, _bIsHole);
 			}
 		}
 	}
 
-	private void DrawPoly(List<Vector3> poly)
+	private void DrawPoly(List<Vector3> poly, bool isHole)
 	{
-		Gizmos.color = Color.blue;
+		Gizmos.color = isHole ? Color.blue : Color.green;
+
 		for (int i = 0; i < poly.Count; ++i)
 		{
 			var next = (i + 1) % poly.Count;
