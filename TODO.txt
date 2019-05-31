@@ -227,5 +227,22 @@ o ok so step 0 for this:
 			- if neither, then neither.
 
 	- so for this we'll need "is point in polygon" waagh, is there no better way?
+
+= ok. now let's try to add all this together.
+	o when cutting, collect the edges
+	o get back poly
+	o triangulate
+	o add to relevant mesh
 	
+
+Things to optimize
+Triangulator.TriangulatePolygon: 54K / 125 ms
+	IsEarTip() 69.02ms
+		=> MeshUtil.IsPointInTriangle() 12K calls, 44.21 ms
+			= so many vector subtractions:
+		
+	TryFindEarIndices() 50.30ms
+		=> which also falls back to IsEarTip()
+MeshUtil.CutTriangleAndCopyVertsAndNormals: 230.3K / 5.35 ms
+
 

@@ -222,8 +222,6 @@ public static class Triangulator
 		tris.Add(vertices[arTip.currIndex]);
 		tris.Add(vertices[ext.currIndex]);
 
-		earIndices.RemoveIndex(arTipPolyVertIndex);
-
 		return tris;
 	}
 
@@ -297,7 +295,7 @@ public static class Triangulator
 		var v2 = next - tip;
 
 		var turnVector = Vector3.Cross(v1, v2);
-		return Vector3.Dot(turnVector, polygonNormal) > 0f;
+		return Vector3.Dot(turnVector, polygonNormal) >= 0f;
 	}
 
 	public static int TryFindEarindices(List<Vector3> vertices, List<PolyVertex> polyVertices, VertexList earIndices)

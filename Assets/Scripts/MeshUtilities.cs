@@ -94,12 +94,13 @@ public static class MeshUtilities
 			return verts;
 		}
 
-		public bool Approx(Vector3 a, Vector3 b, float tolerance = 0.1f)
+		public bool Approx(Vector3 a, Vector3 b, float tolerance = 0.00001f)
 		{
-			var diff = a - b;
+			return a == b;
+			/*var diff = a - b;
 			return Mathf.Abs(diff.x) < tolerance &&
 				   Mathf.Abs(diff.y) < tolerance &&
-				   Mathf.Abs(diff.z) < tolerance;
+				   Mathf.Abs(diff.z) < tolerance;*/
 		}
 
 		private HashSet<int> _connectedEdgeSet;
@@ -252,6 +253,8 @@ public static class MeshUtilities
 		var meshTransform = meshGO.transform;
 		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, ref cutNormal, meshTransform);
 
+		Debug.LogWarningFormat("Post-transform normal: {0}", cutNormal);
+
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
 
 		var vertsAboveCut = new List<Vector3>();
@@ -265,6 +268,9 @@ public static class MeshUtilities
 		var meshVertices = mesh.vertices;
 		var meshTriangles = mesh.triangles;
 		var meshNormals = mesh.normals;
+
+		//TODO - how long will it be? Can we pre-calc?
+		var cutEdges = new List<Edge>();
 
 		for (int triStartIndex = 0; triStartIndex < meshTriangles.Length; triStartIndex += 3)
 		{
@@ -286,21 +292,98 @@ public static class MeshUtilities
 				atLeastOneTriangleWasCut = true;
 				CutTriangleAndCopyVertsAndNormals(mesh, intersection, cutStartPos, cutNormal,
 												  vertsAboveCut, normalsAboveCut,
-												  vertsBelowCut, normalsBelowCut, log);
+												  vertsBelowCut, normalsBelowCut,
+												  cutEdges, log);
+			}
+		}
+
+		// Create cut surfaces
+		if (atLeastOneTriangleWasCut)
+		{
+			var cutFacePolys = ConnectEdges(cutEdges);
+
+			cutFacePoly = cutFacePolys[0];
+
+			if (cutFacePolys.Count > 1)
+			{
+				var polyB = new List<Vector3>(cutFacePolys[1]);
+				if (IsBHoleInA(cutFacePoly, polyB))
+				{
+					cutFaceHole = polyB;
+					cutFacePoly = Triangulator.RemoveHoles(cutFacePoly, polyB);
+				}
+				else
+				{
+					if (IsBHoleInA(polyB, cutFacePoly))
+					{
+						cutFaceHole = cutFacePoly;
+						cutFacePoly = Triangulator.RemoveHoles(polyB, cutFacePoly);
+					}
+					else // Not a hole, but another cut face
+					{
+						if (polyB.Count > 2)
+						{
+							var face = Triangulator.TriangulatePolygon(polyB, -cutNormal);
+
+							if (face.Count < 3)
+							{
+								Debug.LogWarning("PolyB; fewer than 3 vertices in a tri.");
+							}
+
+							for (int i = face.Count - 1; i >= 0; --i) { vertsBelowCut.Add(face[i]); }
+							vertsAboveCut.AddRange(face);
+							for (int i = 0; i < face.Count; ++i)
+							{
+								normalsAboveCut.Add(-cutNormal);
+								normalsBelowCut.Add(cutNormal);
+							}
+						}
+					}
+				}
+			}
+
+			var faceTris = Triangulator.TriangulatePolygon(cutFacePoly, -cutNormal);
+			cutFaceTris = faceTris;
+
+			if (faceTris.Count < 3)
+			{
+				Debug.LogWarning("Cut face; fewer than 3 vertices in a tri");
+				return false;
+			}
+
+			Debug.Assert(faceTris.Count % 3 == 0, "2nd assertion");
+
+			for (int i = faceTris.Count - 1; i >= 0; --i) { vertsBelowCut.Add(faceTris[i]); }
+			vertsAboveCut.AddRange(faceTris);
+
+			for (int i = 0; i < faceTris.Count; ++i)
+			{
+				normalsAboveCut.Add(-cutNormal);
+				normalsBelowCut.Add(cutNormal);
 			}
 		}
 
 		if (atLeastOneTriangleWasCut)
 		{
 			var meshAbove = BuildMesh(vertsAboveCut, normalsAboveCut, log);
+			meshToDraw = meshAbove;
+
 			var meshBelow = BuildMesh(vertsBelowCut, normalsBelowCut, log);
 
 			var goAbove = BuildGO(meshAbove, string.Format("{0}_above", meshGO.name), meshTransform, material, cutNormal, true, makePiecesDrop, log);
 			var goBelow = BuildGO(meshBelow, string.Format("{0}_below", meshGO.name), meshTransform, material, cutNormal, false, makePiecesDrop, log);
 		}
 
+		Debug.LogWarningFormat("atLeastOneTriWasCut: {0}", atLeastOneTriangleWasCut);
+
 		return atLeastOneTriangleWasCut;
 	}
+
+	public static List<Vector3> cutFacePoly;
+	public static List<Vector3> cutFaceHole;
+
+	public static List<Vector3> cutFaceTris;
+	public static Mesh meshToDraw;
 
 	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material,
 									  Vector3 cutNormal, bool aboveCut, bool makeDrop, bool log)
@@ -367,7 +450,8 @@ public static class MeshUtilities
 	private static void CutTriangleAndCopyVertsAndNormals(Mesh mesh, TriIntersections cut,
 														  Vector3 cutStartPos, Vector3 cutNormal,
 														  List<Vector3> vertsAbove, List<Vector3> normsAbove,
-														  List<Vector3> vertsBelow, List<Vector3> normsBelow, bool log)
+														  List<Vector3> vertsBelow, List<Vector3> normsBelow,
+														  List<Edge> cutSurfaceEdges, bool log)
 	{
 		switch (cut.type)
 		{
@@ -399,6 +483,15 @@ public static class MeshUtilities
 					bigPieceNorms.Add(cut.normalIAB);
 					bigPieceNorms.Add(cut.normalB);
 
+					if (!isSmallPieceAboveCut)
+					{
+						cutSurfaceEdges.Add(new Edge(cut.Iab, cut.Ica));
+					}
+					else
+					{
+						cutSurfaceEdges.Add(new Edge(cut.Ica, cut.Iab));
+					}
+
 					break;
 				}
 
@@ -429,6 +522,15 @@ public static class MeshUtilities
 					bigPieceNorms.Add(cut.normalIBC);
 					bigPieceNorms.Add(cut.normalC);
 
+					if (!isSmallPieceAboveCut)
+					{
+						cutSurfaceEdges.Add(new Edge(cut.Ibc, cut.Iab));
+					}
+					else
+					{
+						cutSurfaceEdges.Add(new Edge(cut.Iab, cut.Ibc));
+					}
+
 					break;
 				}
 
@@ -457,6 +559,15 @@ public static class MeshUtilities
 					bigPieceNorms.Add(cut.normalB);
 					bigPieceNorms.Add(cut.normalICA);
 					bigPieceNorms.Add(cut.normalA);
+
+					if (!isSmallPieceAboveCut)
+					{
+						cutSurfaceEdges.Add(new Edge(cut.Ica, cut.Ibc));
+					}
+					else
+					{
+						cutSurfaceEdges.Add(new Edge(cut.Ibc, cut.Ica));
+					}
 
 					break;
 				}
@@ -564,17 +675,24 @@ public static class MeshUtilities
 		var delta = (cutEndWorldSpace - cutStartWorldSpace).normalized;
 		var toCam = (Camera.main.transform.position - cutStartWorldSpace).normalized;
 
-		return Vector3.Cross(delta, toCam);
+		var normal = Vector3.Cross(delta, toCam).normalized;
+		Debug.LogWarningFormat("Normal: {0}", normal);
+		return normal;
 	}
 
 	private static void TransformCutToObjectSpace(ref Vector3 cutStartPos, ref Vector3 cutEndPos, ref Vector3 cutNormal,
 												  Transform meshTransform)
 	{
 		var worldToLocal = meshTransform.worldToLocalMatrix;
+		var localToWorld = meshTransform.localToWorldMatrix;
 
 		cutStartPos = worldToLocal.MultiplyPoint3x4(cutStartPos);
 		cutEndPos = worldToLocal.MultiplyPoint3x4(cutEndPos);
-		cutNormal = worldToLocal.MultiplyVector(cutNormal);
+
+		// :( WTF
+		// https://stackoverflow.com/questions/35092885/transform-normal-and-tangent-from-object-space-to-world-space
+
+		cutNormal = localToWorld.transpose.MultiplyVector(cutNormal).normalized;
 	}
 
 	private static Mesh CreateMultiTriangleMesh(Vector3[] vertices, Vector3 normal)
