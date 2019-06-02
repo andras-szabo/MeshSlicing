@@ -158,8 +158,8 @@ public class VertexChainTester : MonoBehaviour
 		{
 			_polyB = polys[1];
 
-			_aIsHole = MeshUtilities.IsBHoleInA(_polyB, _polyA);
-			_bIsHole = MeshUtilities.IsBHoleInA(_polyA, _polyB);
+			_aIsHole = MeshUtilities.IsSecondHoleInFirst(_polyB, _polyA);
+			_bIsHole = MeshUtilities.IsSecondHoleInFirst(_polyA, _polyB);
 		}
 	}
 

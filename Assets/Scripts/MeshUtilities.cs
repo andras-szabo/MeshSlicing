@@ -21,6 +21,7 @@ public static class MeshUtilities
 		public Vector3 normalB;
 		public Vector3 normalC;
 
+		//Iab, Ibc, Ica: intersection points on AB, BC, CA
 		public Vector3 Iab;
 		public Vector3 Ibc;
 		public Vector3 Ica;
@@ -38,12 +39,14 @@ public static class MeshUtilities
 	}
 
 	public static Vector3 staticCutNormal;
+	public static List<Vector3> cutFacePoly;
+	public static List<Vector3> cutFaceHole;
 
-	public static bool IsBHoleInA(List<Vector3> a, List<Vector3> b)
+	public static bool IsSecondHoleInFirst(List<Vector3> first, List<Vector3> second)
 	{
-		var rayStart = b[0];
-		var rayEnd = b[1];
-		var intersectionCount = Triangulator.DoesIntersect(rayStart, rayEnd, a, countAllIntersections: true, treatRayAsUnbounded: true);
+		var rayStart = second[0];
+		var rayEnd = second[1];
+		var intersectionCount = Triangulator.DoesIntersect(rayStart, rayEnd, first, countAllIntersections: true, treatRayAsUnbounded: true);
 		return intersectionCount % 2 == 1;
 	}
 
@@ -138,8 +141,8 @@ public static class MeshUtilities
 		return Mathf.Approximately(Vector3.Dot(planeNormal, point), 0f);
 	}
 
-	public static bool SliceMultiTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos, Material material,
-												bool makePiecesDrop = true, bool log = true)
+	public static bool SliceMultiTriangleMesh(GameObject meshGO, Vector3 cutStartPos, Vector3 cutEndPos,
+											  Material material, bool makePiecesDrop = true, bool log = true)
 	{
 		// TODO: it might make sense to check in advance somehow if anything is going to be affected
 		// by the cut, even if we don't actually do anything if it's not.
@@ -193,76 +196,61 @@ public static class MeshUtilities
 		}
 
 		// Create cut surfaces
+
+		// So what should happen:
+		// cutFacePolys = ConnectEdges(cutEdges).
+		// if more than one polygon found:
+		// - collect "is a hole in" relationships
+		// - iter through and remove all the holes
+		// now do the thing.
+
 		if (atLeastOneTriangleWasCut)
 		{
 			var cutFacePolys = ConnectEdges(cutEdges);
-
-			cutFacePoly = cutFacePolys[0];
+			var isHole = new bool[cutFacePolys.Count];
 
 			if (cutFacePolys.Count > 1)
 			{
-				var polyB = new List<Vector3>(cutFacePolys[1]);
-				if (IsBHoleInA(cutFacePoly, polyB))
+				var holes = FindHolesIn(cutFacePolys);
+				foreach (var hole in holes)
 				{
-					cutFaceHole = polyB;
-					cutFacePoly = Triangulator.RemoveHoles(cutFacePoly, polyB);
+					cutFacePolys[hole.outerPolyIndex] = Triangulator.RemoveHoles(cutFacePolys[hole.outerPolyIndex],
+																				 cutFacePolys[hole.holePolyIndex]);
+					isHole[hole.holePolyIndex] = true;
 				}
-				else
+			}
+
+			var foundAtLeastOneFace = false;
+
+			for (int polyIndex = 0; polyIndex < cutFacePolys.Count; ++polyIndex)
+			{
+				if (!isHole[polyIndex] && cutFacePolys[polyIndex].Count > 2)
 				{
-					if (IsBHoleInA(polyB, cutFacePoly))
+					var face = Triangulator.TriangulatePolygon(cutFacePolys[polyIndex], -cutNormal);
+					var triCount = face.Count;
+					if (triCount > 0 && triCount % 3 == 0)
 					{
-						cutFaceHole = cutFacePoly;
-						cutFacePoly = Triangulator.RemoveHoles(polyB, cutFacePoly);
-					}
-					else // Not a hole, but another cut face
-					{
-						if (polyB.Count > 2)
+						foundAtLeastOneFace = true;
+						for (int i = triCount - 1; i >= 0; --i)
 						{
-							var face = Triangulator.TriangulatePolygon(polyB, -cutNormal);
-
-							if (face.Count < 3)
-							{
-								Debug.LogWarning("PolyB; fewer than 3 vertices in a tri.");
-							}
-
-							for (int i = face.Count - 1; i >= 0; --i) { vertsBelowCut.Add(face[i]); }
-							vertsAboveCut.AddRange(face);
-							for (int i = 0; i < face.Count; ++i)
-							{
-								normalsAboveCut.Add(-cutNormal);
-								normalsBelowCut.Add(cutNormal);
-							}
+							vertsBelowCut.Add(face[i]);
+							normalsAboveCut.Add(-cutNormal);
+							normalsBelowCut.Add(cutNormal);
 						}
+						vertsAboveCut.AddRange(face);
 					}
 				}
 			}
 
-			var faceTris = Triangulator.TriangulatePolygon(cutFacePoly, -cutNormal);
-			cutFaceTris = faceTris;
-
-			if (faceTris.Count < 3)
+			if (!foundAtLeastOneFace)
 			{
-				Debug.LogWarning("Cut face; fewer than 3 vertices in a tri");
 				return false;
-			}
-
-			Debug.Assert(faceTris.Count % 3 == 0);
-
-			for (int i = faceTris.Count - 1; i >= 0; --i) { vertsBelowCut.Add(faceTris[i]); }
-			vertsAboveCut.AddRange(faceTris);
-
-			for (int i = 0; i < faceTris.Count; ++i)
-			{
-				normalsAboveCut.Add(-cutNormal);
-				normalsBelowCut.Add(cutNormal);
 			}
 		}
 
 		if (atLeastOneTriangleWasCut)
 		{
 			var meshAbove = BuildMesh(vertsAboveCut, normalsAboveCut, log);
-			meshToDraw = meshAbove;
-
 			var meshBelow = BuildMesh(vertsBelowCut, normalsBelowCut, log);
 
 			var goAbove = BuildGO(meshAbove, string.Format("{0}_above", meshGO.name), meshTransform, material, cutNormal, true, makePiecesDrop, log);
@@ -272,11 +260,36 @@ public static class MeshUtilities
 		return atLeastOneTriangleWasCut;
 	}
 
-	public static List<Vector3> cutFacePoly;
-	public static List<Vector3> cutFaceHole;
+	public struct HoleMarker
+	{
+		public int outerPolyIndex;
+		public int holePolyIndex;
+	}
 
-	public static List<Vector3> cutFaceTris;
-	public static Mesh meshToDraw;
+	private static List<HoleMarker> FindHolesIn(List<List<Vector3>> polygons)
+	{
+		var holes = new List<HoleMarker>();
+
+		for (int polygonIndex = 0; polygonIndex < polygons.Count; ++polygonIndex)
+		{
+			var holeFound = false;
+			for (int otherIndex = polygonIndex + 1; !holeFound && otherIndex < polygons.Count; ++otherIndex)
+			{
+				if (IsSecondHoleInFirst(polygons[polygonIndex], polygons[otherIndex]))
+				{
+					holeFound = true;
+					holes.Add(new HoleMarker { outerPolyIndex = polygonIndex, holePolyIndex = otherIndex });
+				}
+				else if (IsSecondHoleInFirst(polygons[otherIndex], polygons[polygonIndex]))
+				{
+					holeFound = true;
+					holes.Add(new HoleMarker { outerPolyIndex = otherIndex, holePolyIndex = polygonIndex });
+				}
+			}
+		}
+
+		return holes;
+	}
 
 	private static GameObject BuildGO(Mesh mesh, string goName, Transform transformTemplate, Material material,
 									  Vector3 cutNormal, bool aboveCut, bool makeDrop, bool log)

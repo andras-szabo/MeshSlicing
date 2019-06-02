@@ -3,14 +3,6 @@ using UnityEngine;
 
 public class MeshSlicer : MonoBehaviour
 {
-	public Vector3 pointA;
-	public Vector3 pointB;
-	public Vector3 pointC;
-	public Vector3 normal = new Vector3(0, 0, -1f);
-
-	public Material meshMaterial;
-
-	public GameObject meshGameObjectToSlice;
 	public bool makePiecesDrop;
 
 	private Vector3 _cutStartPoint;
@@ -109,11 +101,10 @@ public class MeshSlicer : MonoBehaviour
 			if (couldSlice)
 			{
 				Destroy(go);
-				meshGameObjectToSlice = null;
 			}
 			else
 			{
-				Debug.LogWarning("Couldn't slice");
+				Debug.Log("Couldn't slice");
 			}
 
 			_shouldDrawCutNormal = true;
