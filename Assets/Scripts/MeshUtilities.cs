@@ -11,109 +11,6 @@ public static class MeshUtilities
 		BCCA
 	}
 
-	public struct Edge
-	{
-		public Edge(Vector3 f, Vector3 t)
-		{
-			from = f;
-			to = t;
-		}
-
-		public Vector3 from;
-		public Vector3 to;
-	}
-
-	//TODO own file
-	public class ConnectedEdges
-	{
-		public ConnectedEdges(List<Edge> allEdges, int startEdgeIndex)
-		{
-			_allEdges = allEdges;
-			_connectedEdgeSet = new HashSet<int>();
-			_nextEdge = new List<int>(capacity: allEdges.Count);
-
-			//TODO this could be optimized away if we kept +1 indices, and treat
-			//0 as "invalid"
-			for (int i = 0; i < _allEdges.Count; ++i) { _nextEdge.Add(-1); }
-			Start(startEdgeIndex);
-		}
-
-		public void Start(int startEdgeIndex)
-		{
-			_connectedEdgeSet.Add(startEdgeIndex);
-			_firstConnectedEdgeIndex = startEdgeIndex;
-			_lastConnectedEdgeIndex = startEdgeIndex;
-
-			_start = _allEdges[startEdgeIndex].from;
-			_end = _allEdges[startEdgeIndex].to;
-		}
-
-		public bool Contains(int index)
-		{
-			return _connectedEdgeSet.Contains(index);
-		}
-
-		public bool TryConnect(int index)
-		{
-			if (Approx(_allEdges[index].from, _end))
-			{
-				_nextEdge[_lastConnectedEdgeIndex] = index;
-				_connectedEdgeSet.Add(index);
-				_end = _allEdges[index].to;
-				_lastConnectedEdgeIndex = index;
-				return true;
-			}
-
-			if (Approx(_allEdges[index].to, _start))
-			{
-				_nextEdge[index] = _firstConnectedEdgeIndex;
-				_connectedEdgeSet.Add(index);
-				_start = _allEdges[index].from;
-				_firstConnectedEdgeIndex = index;
-				return true;
-			}
-
-			return false;
-		}
-
-		public List<Vector3> GetVerts()
-		{
-			var verts = new List<Vector3>(capacity: _connectedEdgeSet.Count);
-
-			var currentEdgeIndex = _firstConnectedEdgeIndex;
-
-			verts.Add(_allEdges[_firstConnectedEdgeIndex].from);
-
-			do
-			{
-				var edge = _allEdges[currentEdgeIndex];
-				verts.Add(edge.to);
-				currentEdgeIndex = _nextEdge[currentEdgeIndex];
-			} while (currentEdgeIndex != -1);
-
-			return verts;
-		}
-
-		public bool Approx(Vector3 a, Vector3 b, float tolerance = 0.00001f)
-		{
-			return a == b;
-			/*var diff = a - b;
-			return Mathf.Abs(diff.x) < tolerance &&
-				   Mathf.Abs(diff.y) < tolerance &&
-				   Mathf.Abs(diff.z) < tolerance;*/
-		}
-
-		private HashSet<int> _connectedEdgeSet;
-		private List<int> _nextEdge;
-		private List<Edge> _allEdges;
-
-		private int _firstConnectedEdgeIndex;
-		private int _lastConnectedEdgeIndex;
-
-		private Vector3 _start;
-		private Vector3 _end;
-	}
-
 	public struct TriIntersections
 	{
 		public Vector3 A;
@@ -253,8 +150,6 @@ public static class MeshUtilities
 		var meshTransform = meshGO.transform;
 		TransformCutToObjectSpace(ref cutStartPos, ref cutEndPos, ref cutNormal, meshTransform);
 
-		Debug.LogWarningFormat("Post-transform normal: {0}", cutNormal);
-
 		var mesh = meshGO.GetComponent<MeshFilter>().sharedMesh;
 
 		var vertsAboveCut = new List<Vector3>();
@@ -351,7 +246,7 @@ public static class MeshUtilities
 				return false;
 			}
 
-			Debug.Assert(faceTris.Count % 3 == 0, "2nd assertion");
+			Debug.Assert(faceTris.Count % 3 == 0);
 
 			for (int i = faceTris.Count - 1; i >= 0; --i) { vertsBelowCut.Add(faceTris[i]); }
 			vertsAboveCut.AddRange(faceTris);
@@ -373,8 +268,6 @@ public static class MeshUtilities
 			var goAbove = BuildGO(meshAbove, string.Format("{0}_above", meshGO.name), meshTransform, material, cutNormal, true, makePiecesDrop, log);
 			var goBelow = BuildGO(meshBelow, string.Format("{0}_below", meshGO.name), meshTransform, material, cutNormal, false, makePiecesDrop, log);
 		}
-
-		Debug.LogWarningFormat("atLeastOneTriWasCut: {0}", atLeastOneTriangleWasCut);
 
 		return atLeastOneTriangleWasCut;
 	}
@@ -457,7 +350,6 @@ public static class MeshUtilities
 		{
 			case CutType.ABCA:
 				{
-					LogIf(log, "ABCA");
 					var isSmallPieceAboveCut = Vector3.Dot(cutNormal, cut.A - cutStartPos) > 0f;
 
 					List<Vector3> smallPieceVerts = isSmallPieceAboveCut ? vertsAbove : vertsBelow;
@@ -675,9 +567,7 @@ public static class MeshUtilities
 		var delta = (cutEndWorldSpace - cutStartWorldSpace).normalized;
 		var toCam = (Camera.main.transform.position - cutStartWorldSpace).normalized;
 
-		var normal = Vector3.Cross(delta, toCam).normalized;
-		Debug.LogWarningFormat("Normal: {0}", normal);
-		return normal;
+		return Vector3.Cross(delta, toCam).normalized;
 	}
 
 	private static void TransformCutToObjectSpace(ref Vector3 cutStartPos, ref Vector3 cutEndPos, ref Vector3 cutNormal,
@@ -689,33 +579,18 @@ public static class MeshUtilities
 		cutStartPos = worldToLocal.MultiplyPoint3x4(cutStartPos);
 		cutEndPos = worldToLocal.MultiplyPoint3x4(cutEndPos);
 
-		// :( WTF
-		// https://stackoverflow.com/questions/35092885/transform-normal-and-tangent-from-object-space-to-world-space
+		// When transforming the normal vector from world to object space, we
+		// must be aware of non-uniform scaled objects. Multiplying with a
+		// matrix that has non-uniform scaling can change angles => the normal
+		// might stop being perpendicular to the surface it needs to be perpendicular to.
+		// So the idea: we need a matrix that applies the rotation to the normal,
+		// but counteracts scaling such that the normal will keep its perpendicularity.
+		// This matrix is the transpose of the inverse of the mesh's world-to-local matrix.
+		// - in other words, it's the local-to-world matrix. When we transpose that,
+		// the diagonals - encoding scaling - will not be changed, but rotation
+		// values will apply as necessary.
 
 		cutNormal = localToWorld.transpose.MultiplyVector(cutNormal).normalized;
-	}
-
-	private static Mesh CreateMultiTriangleMesh(Vector3[] vertices, Vector3 normal)
-	{
-		var normals = new Vector3[vertices.Length];
-		var triangles = new int[vertices.Length];
-
-		for (int i = 0; i < normals.Length; ++i)
-		{
-			normals[i] = normal;
-
-			// So we're duplicating vertices here, yes.
-
-			triangles[i] = i;
-		}
-
-		var mesh = new Mesh();
-
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-		mesh.normals = normals;
-
-		return mesh;
 	}
 
 	public static GameObject CreateMeshGameObject(Mesh mesh, string goName, Material material)
@@ -726,41 +601,5 @@ public static class MeshUtilities
 		var renderer = go.AddComponent<MeshRenderer>();
 		renderer.material = material;
 		return go;
-	}
-
-	//TODO cleanup
-	public static Mesh CreateSingleTriangleMesh(IEnumerable<Vector3> points, Vector3 normal)
-	{
-		var vertices = new Vector3[3];
-		var normals = new Vector3[3];
-		var triangles = new int[] { 0, 1, 2 };
-
-		var i = 0;
-
-		foreach (var point in points)
-		{
-			vertices[i] = point;
-			normals[i] = normal;
-
-			if (++i >= 3)
-			{
-				break;
-			}
-		}
-
-		if (i != 3)
-		{
-			return null;
-		}
-
-		var mesh = new Mesh();
-
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-		mesh.normals = normals;
-
-		mesh.RecalculateNormals();
-
-		return mesh;
 	}
 }

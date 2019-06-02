@@ -61,38 +61,6 @@ public class MeshSlicer : MonoBehaviour
 				Gizmos.DrawLine(_cutStartPoint, _cutStartPoint + MeshUtilities.staticCutNormal);
 			}
 		}
-
-		/*
-		if (Application.isPlaying && MeshUtilities.cutFaceTris != null)
-		{
-			Gizmos.color = Color.cyan;
-			for (int i = 0; i < MeshUtilities.cutFaceTris.Count - 2; i += 3)
-			{
-				var f = MeshUtilities.cutFaceTris;
-				Gizmos.DrawLine(f[i], f[i + 1]);
-				Gizmos.DrawLine(f[i + 1], f[i + 2]);
-				Gizmos.DrawLine(f[i + 2], f[i]);
-			}
-		}
-
-		if (Application.isPlaying && MeshUtilities.cutFaceHole != null)
-		{
-			Gizmos.color = Color.red;
-			var h = MeshUtilities.cutFaceHole;
-			for (int i = 0; i < h.Count; ++i)
-			{
-				Gizmos.DrawLine(h[i], h[(i + 1) % h.Count]);
-			}
-		}
-
-		if (Application.isPlaying && MeshUtilities.meshToDraw != null)
-		{
-			Gizmos.color = Color.yellow;
-			Gizmos.DrawMesh(MeshUtilities.meshToDraw);
-			Gizmos.color = Color.cyan;
-			Gizmos.DrawWireMesh(MeshUtilities.meshToDraw);
-		}
-		*/
 	}
 
 	private List<GameObject> CollectSliceables()
@@ -135,7 +103,6 @@ public class MeshSlicer : MonoBehaviour
 
 		foreach (var go in gameObjectsToSlice)
 		{
-			Debug.LogWarning(go.name);
 			var mMaterial = go.GetComponent<MeshRenderer>().sharedMaterial;
 
 			var couldSlice = MeshUtilities.SliceMultiTriangleMesh(go, _cutStartPoint, _cutEndPoint, mMaterial, makePiecesDrop, false);

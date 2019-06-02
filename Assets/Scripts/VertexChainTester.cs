@@ -1,11 +1,10 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class VertexChainTester : MonoBehaviour
 {
-	private List<MeshUtilities.Edge> _edges = new List<MeshUtilities.Edge>();
-	private List<MeshUtilities.Edge> _holeEdges = new List<MeshUtilities.Edge>();
+	private List<Edge> _edges = new List<Edge>();
+	private List<Edge> _holeEdges = new List<Edge>();
 
 	private List<Vector3> _polyA = new List<Vector3>();
 	private List<Vector3> _polyB = new List<Vector3>();
@@ -27,7 +26,7 @@ public class VertexChainTester : MonoBehaviour
 		return cam.ScreenToWorldPoint(screenCoords);
 	}
 
-	private MeshUtilities.Edge GetLastEdge()
+	private Edge GetLastEdge()
 	{
 		return _edges[_edges.Count - 1];
 	}
@@ -60,12 +59,12 @@ public class VertexChainTester : MonoBehaviour
 
 	private void EndNewHoleEdge()
 	{
-		_holeEdges.Add(new MeshUtilities.Edge(_currHoleEdgeStart, _currHoleEdgeEnd));
+		_holeEdges.Add(new Edge(_currHoleEdgeStart, _currHoleEdgeEnd));
 	}
 
 	private void EndNewEdge()
 	{
-		_edges.Add(new MeshUtilities.Edge(_currentEdgeStart, _currentEdgeEnd));
+		_edges.Add(new Edge(_currentEdgeStart, _currentEdgeEnd));
 	}
 
 	private void Update()
@@ -95,12 +94,12 @@ public class VertexChainTester : MonoBehaviour
 		{
 			if (_edges.Count >= 2)
 			{
-				_edges.Add(new MeshUtilities.Edge(GetLastEdge().to, _edges[0].from));
+				_edges.Add(new Edge(GetLastEdge().to, _edges[0].from));
 				_currentEdgeStart = _currentEdgeEnd;
 
 				if (_holeEdges.Count >= 2)
 				{
-					_holeEdges.Add(new MeshUtilities.Edge(_holeEdges[_holeEdges.Count - 1].to, _holeEdges[0].from));
+					_holeEdges.Add(new Edge(_holeEdges[_holeEdges.Count - 1].to, _holeEdges[0].from));
 					_currHoleEdgeEnd = _currHoleEdgeStart;
 				}
 
@@ -112,7 +111,7 @@ public class VertexChainTester : MonoBehaviour
 		if (Input.GetKeyDown(KeyCode.C) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
 		{
 			_isDone = false;
-			
+
 			_edges.Clear();
 			_holeEdges.Clear();
 			_currentEdgeEnd = _currentEdgeStart;
@@ -136,7 +135,7 @@ public class VertexChainTester : MonoBehaviour
 			shuffledIndices[right] = tmp;
 		}
 
-		var shuffledEdges = new List<MeshUtilities.Edge>(capacity: totalEdgeCount);
+		var shuffledEdges = new List<Edge>(capacity: totalEdgeCount);
 
 		foreach (var index in shuffledIndices)
 		{
@@ -221,13 +220,5 @@ public class VertexChainTester : MonoBehaviour
 			Gizmos.DrawLine(edge.from, edge.to);
 		}
 	}
-
-	// So the idea here is this:
-	// - put in a point -> edge start
-	// - put in another point -> edge end
-	// - put in new point -> it will create a new, connecting edge:
-	//		- create a separate vertex for the start (with the same coords as the previous end),
-	//		  you're free to put the end down
-	// - enter to finalize
-
 }
+
